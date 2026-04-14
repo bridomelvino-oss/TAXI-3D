@@ -7,7 +7,6 @@
 // ─────────────────────────────────────────────
 
 import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
@@ -32,12 +31,6 @@ Notifications.setNotificationHandler({
  * @returns le token ou null si refusé / non supporté
  */
 export async function enregistrerNotifications(uid: string): Promise<string | null> {
-  // Les notifications push nécessitent un vrai appareil
-  if (!Device.isDevice) {
-    console.warn('Notifications push non disponibles sur simulateur');
-    return null;
-  }
-
   // Canal Android (obligatoire pour Android 8+)
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(NOTIF_CHANNEL_ID, {

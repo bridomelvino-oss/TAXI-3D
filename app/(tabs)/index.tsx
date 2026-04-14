@@ -20,7 +20,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import MapView, { Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Polyline } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
@@ -350,7 +350,6 @@ export default function CarteScreen() {
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
-        provider={PROVIDER_GOOGLE}
         customMapStyle={mapStyleDark}
         initialRegion={{ ...DIEGO_CENTER, ...CARTE_DELTA_INITIAL }}
         showsUserLocation
