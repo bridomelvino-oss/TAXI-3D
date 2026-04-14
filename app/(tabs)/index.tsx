@@ -10,7 +10,7 @@
 //  6. Détection de conquête à la fin de la course
 // ─────────────────────────────────────────────
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -34,7 +34,6 @@ import {
   arreterTracking,
   getPositionActuelle,
   calculerDistanceTotale,
-  estCircuitFerme,
 } from '../../services/location';
 import {
   ecouterZones,
@@ -52,7 +51,6 @@ import {
   DIEGO_CENTER,
   CARTE_DELTA_INITIAL,
   CARTE_DELTA_COURSE,
-  CIRCUIT_CLOSE_DISTANCE_M,
   CIRCUIT_MIN_POINTS,
 } from '../../constants/config';
 import { Coordinate, GpsPoint, Zone, UserProfile } from '../../types';
@@ -205,7 +203,8 @@ export default function CarteScreen() {
       },
       (errMsg) => {
         Alert.alert('Erreur GPS', errMsg);
-        arreterCourse();
+        arreterCourseTimer();
+        setCourse(INITIAL_COURSE);
       },
     );
 

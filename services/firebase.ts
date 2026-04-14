@@ -19,14 +19,11 @@ import {
   doc,
   setDoc,
   getDoc,
-  getDocs,
   updateDoc,
   onSnapshot,
   query,
   orderBy,
   limit,
-  where,
-  serverTimestamp,
   deleteDoc,
   writeBatch,
   increment,
@@ -119,7 +116,6 @@ export async function majStatsUtilisateur(
   await updateDoc(ref, {
     totalAireM2: increment(deltaAireM2),
     zonesCount:  increment(deltaZones),
-    coursesCount: increment(1),
   });
 }
 
