@@ -1,0 +1,26 @@
+node_modules/
+.expo/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Secrets Firebase — NE JAMAIS commiter ces fichiers
+google-services.json
+GoogleService-Info.plist
+
+# Environnement
+.env
+.env.local
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
