@@ -38,12 +38,12 @@ import { FIRESTORE_COLLECTIONS } from '../constants/config';
 // ─── Config Firebase ────────────────────────────────────────────────────────
 // Remplace ces valeurs par celles de ton projet Firebase
 const firebaseConfig = {
-  apiKey:            'YOUR_API_KEY',
-  authDomain:        'YOUR_PROJECT_ID.firebaseapp.com',
-  projectId:         'YOUR_PROJECT_ID',
-  storageBucket:     'YOUR_PROJECT_ID.appspot.com',
-  messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-  appId:             'YOUR_APP_ID',
+  apiKey:            'AIzaSyDj6JJlZe_rgTsen1e4dVr98b0KanNAB-4',
+  authDomain:        'runzone-13452.firebaseapp.com',
+  projectId:         'runzone-13452',
+  storageBucket:     'runzone-13452.firebasestorage.app',
+  messagingSenderId: '426532664130',
+  appId:             '1:426532664130:web:c6f10d0224f34f2be60edb',
 };
 
 // ─── Initialisation (singleton : évite double init en dev HMR) ──────────────
