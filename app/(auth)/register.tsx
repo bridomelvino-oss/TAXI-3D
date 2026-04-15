@@ -17,8 +17,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { auth } from '../../services/firebase';
-import { creerProfilUtilisateur } from '../../services/firebase';
+import { auth, creerProfilUtilisateur } from '../../services/firebase';
 import { Colors } from '../../constants/colors';
 
 export default function RegisterScreen() {

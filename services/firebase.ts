@@ -155,6 +155,9 @@ export function ecouterZones(callback: (zones: Zone[]) => void): () => void {
     const zones: Zone[] = [];
     snapshot.forEach((d) => zones.push(d.data() as Zone));
     callback(zones);
+  }, (err) => {
+    console.error('[RunZone] ecouterZones error:', err.message);
+    callback([]); // zones reste vide, l'app ne plante pas
   });
 }
 
@@ -228,5 +231,8 @@ export function ecouterClassement(
       rank++;
     });
     callback(entries);
+  }, (err) => {
+    console.error('[RunZone] ecouterClassement error:', err.message);
+    callback([]); // arrête le spinner infini dans l'écran classement
   });
 }

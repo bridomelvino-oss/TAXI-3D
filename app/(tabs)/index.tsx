@@ -18,7 +18,6 @@ import {
   Text,
   Modal,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import MapView, { Polyline } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
