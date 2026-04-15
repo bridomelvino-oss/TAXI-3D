@@ -349,12 +349,10 @@ export default function CarteScreen() {
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
-        customMapStyle={mapStyleDark}
         initialRegion={{ ...DIEGO_CENTER, ...CARTE_DELTA_INITIAL }}
         showsUserLocation
         showsMyLocationButton={false}
         showsCompass={false}
-        showsScale={false}
         rotateEnabled={false}
         toolbarEnabled={false}
         onMapReady={() => {
@@ -379,7 +377,6 @@ export default function CarteScreen() {
             coordinates={traceCoords}
             strokeColor={Colors.traceColor}
             strokeWidth={3}
-            lineDashPattern={undefined}
           />
         )}
       </MapView>
@@ -453,22 +450,6 @@ export default function CarteScreen() {
     </View>
   );
 }
-
-// ─── Style carte sombre (Google Maps dark style) ─────────────────────────────
-
-const mapStyleDark = [
-  { elementType: 'geometry', stylers: [{ color: '#1a1a2e' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2d2d4e' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#212a37' }] },
-  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3a3a6e' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0d1b2a' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#515c6d' }] },
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-];
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 

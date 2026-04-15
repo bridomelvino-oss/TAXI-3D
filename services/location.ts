@@ -21,14 +21,8 @@ import {
  */
 export async function demanderPermissionsGPS(): Promise<boolean> {
   try {
-    // Permission "en utilisation" (foreground)
-    const { status: foreground } = await Location.requestForegroundPermissionsAsync();
-    if (foreground !== 'granted') return false;
-
-    // Permission arrière-plan (Android uniquement, pour course en fond)
-    const { status: background } = await Location.requestBackgroundPermissionsAsync();
-    // On accepte même sans background — la course fonctionnera en foreground
-    return true;
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    return status === 'granted';
   } catch {
     return false;
   }
