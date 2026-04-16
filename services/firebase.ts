@@ -29,7 +29,7 @@ import {
   increment,
 } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Zone, UserProfile, ClassementEntry } from '../types';
+import { Zone, UserProfile, ClassementEntry, CourseHistoryEntry } from '../types';
 import { FIRESTORE_COLLECTIONS } from '../constants/config';
 
 // ─── Config Firebase ────────────────────────────────────────────────────────
@@ -102,6 +102,26 @@ export async function getProfilUtilisateur(uid: string): Promise<UserProfile | n
   const snap = await getDoc(doc(db, FIRESTORE_COLLECTIONS.users, uid));
   if (!snap.exists()) return null;
   return snap.data() as UserProfile;
+}
+
+/**
+ * Sauvegarde une entrée d'historique de course dans le profil utilisateur.
+ * Conserve les 5 dernières courses. Non-critique : l'erreur est silencieuse.
+ */
+export async function sauvegarderHistoriqueCourse(
+  uid: string,
+  entree: CourseHistoryEntry,
+): Promise<void> {
+  const ref = doc(db, FIRESTORE_COLLECTIONS.users, uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+
+  const data = snap.data() as UserProfile;
+  const historique = data.derniersCourses ?? [];
+  // Ajoute en tête, limite à 5
+  const nouveau = [entree, ...historique].slice(0, 5);
+
+  await updateDoc(ref, { derniersCourses: nouveau });
 }
 
 /**

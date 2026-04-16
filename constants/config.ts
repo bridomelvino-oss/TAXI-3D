@@ -46,14 +46,14 @@ export const GPS_MIN_ACCURACY_M = 30;
 
 // ─── Algorithme zones ─────────────────────────
 /** Aire minimale d'une zone pour être valide (m²) */
-export const ZONE_MIN_AREA_M2 = 500;
+export const ZONE_MIN_AREA_M2 = 200;
 
 /** Distance de fermeture du circuit (mètres) :
  *  quand le coureur revient à moins de X mètres du départ, le circuit se ferme */
 export const CIRCUIT_CLOSE_DISTANCE_M = 30;
 
 /** Nombre minimum de points GPS pour créer une zone */
-export const CIRCUIT_MIN_POINTS = 10;
+export const CIRCUIT_MIN_POINTS = 5;
 
 // ─── Firebase collections ────────────────────
 export const FIRESTORE_COLLECTIONS = {

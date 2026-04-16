@@ -14,7 +14,7 @@ import { Coordinate, Zone } from '../types';
 
 export interface MapLeafletRef {
   centerOn: (lat: number, lng: number) => void;
-  updateLocation: (lat: number, lng: number) => void;
+  updateLocation: (lat: number, lng: number, accuracy?: number) => void;
 }
 
 interface Props {
@@ -45,7 +45,7 @@ body,html{width:100%;height:100%;background:#0D0D0D}
 var map=L.map('map',{zoomControl:false,attributionControl:false}).setView([-12.355,49.3],15);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:''}).addTo(map);
 
-var dot=null,line=null,zones={};
+var dot=null,acc=null,line=null,zones={};
 
 function recv(d){
   if(!d||!d.t)return;
@@ -53,7 +53,15 @@ function recv(d){
     map.setView([d.lat,d.lng],17,{animate:true,duration:0.5});
   }
   if(d.t==='l'){
+    if(acc)map.removeLayer(acc);
     if(dot)map.removeLayer(dot);
+    // Cercle de précision GPS
+    if(d.a&&d.a<80){
+      acc=L.circle([d.lat,d.lng],{
+        radius:d.a,fillColor:'#4285F4',fillOpacity:0.08,
+        color:'#4285F4',weight:1,opacity:0.25
+      }).addTo(map);
+    }
     dot=L.circleMarker([d.lat,d.lng],{
       radius:9,fillColor:'#4285F4',color:'#fff',weight:2,fillOpacity:1
     }).addTo(map);
@@ -62,7 +70,7 @@ function recv(d){
   if(d.t==='tr'){
     if(line)map.removeLayer(line);
     if(d.p&&d.p.length>1){
-      line=L.polyline(d.p,{color:'#FF4136',weight:3,opacity:0.9}).addTo(map);
+      line=L.polyline(d.p,{color:'#FF4136',weight:4,opacity:1}).addTo(map);
     }
   }
   if(d.t==='z'){
@@ -71,8 +79,8 @@ function recv(d){
     (d.list||[]).forEach(function(z){
       var coords=z.coordinates.map(function(c){return[c.latitude,c.longitude];});
       var poly=L.polygon(coords,{
-        fillColor:z.ownerColor,fillOpacity:0.35,
-        color:z.ownerColor,weight:2,opacity:0.9
+        fillColor:z.ownerColor,fillOpacity:0.45,
+        color:z.ownerColor,weight:2.5,opacity:1
       }).addTo(map);
       poly.bindTooltip(z.ownerName,{
         permanent:true,direction:'center',className:'zt'
@@ -102,7 +110,7 @@ const MapLeaflet = forwardRef<MapLeafletRef, Props>(({ zones, traceCoords }, ref
 
   useImperativeHandle(ref, () => ({
     centerOn:       (lat, lng) => send({ t: 'c', lat, lng }),
-    updateLocation: (lat, lng) => send({ t: 'l', lat, lng }),
+    updateLocation: (lat, lng, accuracy) => send({ t: 'l', lat, lng, a: accuracy }),
   }));
 
   useEffect(() => {

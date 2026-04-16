@@ -2,12 +2,12 @@
 // Écran principal — Carte + Course
 //
 // Fonctionnalités :
-//  1. Carte OpenStreetMap (Leaflet via WebView — pas de clé API)
-//  2. Tracking GPS temps réel avec tracé sur la carte
+//  1. Carte OpenStreetMap Dark (Leaflet via WebView)
+//  2. Tracking GPS temps réel avec tracé + cercle de précision
 //  3. Overlay stats de course (distance, durée, vitesse)
-//  4. Bouton démarrer/terminer la course
+//  4. Bouton démarrer/terminer + bouton recentrer GPS
 //  5. Affichage de toutes les zones en temps réel
-//  6. Détection de conquête à la fin de la course
+//  6. Détection de conquête + partage du résultat
 // ─────────────────────────────────────────────
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -18,6 +18,7 @@ import {
   Text,
   Modal,
   TouchableOpacity,
+  Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
@@ -37,6 +38,7 @@ import {
   ecouterZones,
   getProfilUtilisateur,
   appliquerConquete,
+  sauvegarderHistoriqueCourse,
 } from '../../services/firebase';
 import {
   creerZone,
@@ -75,21 +77,18 @@ export default function CarteScreen() {
   const mapRef = useRef<MapLeafletRef>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // État utilisateur
   const [profil, setProfil] = useState<UserProfile | null>(null);
   const [permisGPS, setPermisGPS] = useState<boolean | null>(null);
-
-  // État zones et course
   const [zones, setZones] = useState<Zone[]>([]);
   const [course, setCourse] = useState<CourseState>(INITIAL_COURSE);
   const [loading, setLoading] = useState(false);
 
-  // Modal résultat de course
   const [modalResultat, setModalResultat] = useState<{
     visible: boolean;
     nouvelleZone?: Zone;
     zonesConquises: Zone[];
-  }>({ visible: false, zonesConquises: [] });
+    distanceM: number;
+  }>({ visible: false, zonesConquises: [], distanceM: 0 });
 
   // ─── Initialisation ─────────────────────────────────────────────────────
 
@@ -132,15 +131,11 @@ export default function CarteScreen() {
       Alert.alert('Profil manquant', 'Reconnecte-toi.');
       return;
     }
-
     setLoading(true);
 
     const ok = await demanderPermissionsGPS();
     if (!ok) {
-      Alert.alert(
-        'GPS requis',
-        'Active la localisation dans les paramètres pour utiliser RunZone.',
-      );
+      Alert.alert('GPS requis', 'Active la localisation dans les paramètres.');
       setLoading(false);
       return;
     }
@@ -150,9 +145,7 @@ export default function CarteScreen() {
 
     timerRef.current = setInterval(() => {
       setCourse((prev) =>
-        prev.isRunning
-          ? { ...prev, dureeMs: Date.now() - prev.startedAt }
-          : prev,
+        prev.isRunning ? { ...prev, dureeMs: Date.now() - prev.startedAt } : prev,
       );
     }, 1000);
 
@@ -160,20 +153,12 @@ export default function CarteScreen() {
       (point) => {
         setCourse((prev) => {
           if (!prev.isRunning) return prev;
-
           const dernierPoint = prev.points[prev.points.length - 1];
-          const delta = dernierPoint
-            ? calculerDistanceTotale([dernierPoint, point])
-            : 0;
-
-          const nouveauxPoints = [...prev.points, point];
-
-          // Met à jour la position sur la carte Leaflet
-          mapRef.current?.updateLocation(point.latitude, point.longitude);
-
+          const delta = dernierPoint ? calculerDistanceTotale([dernierPoint, point]) : 0;
+          mapRef.current?.updateLocation(point.latitude, point.longitude, point.accuracy);
           return {
             ...prev,
-            points: nouveauxPoints,
+            points: [...prev.points, point],
             distanceM: prev.distanceM + delta,
             vitesseMps: point.speed ?? 0,
           };
@@ -190,7 +175,6 @@ export default function CarteScreen() {
       arreterCourseTimer();
       setCourse(INITIAL_COURSE);
     }
-
     setLoading(false);
   }
 
@@ -200,20 +184,19 @@ export default function CarteScreen() {
     arreterCourseTimer();
     arreterTracking();
 
-    const { points } = course;
+    const { points, distanceM } = course;
     setCourse((prev) => ({ ...prev, isRunning: false }));
 
     if (points.length < CIRCUIT_MIN_POINTS) {
       Alert.alert(
         'Course trop courte',
-        `Minimum ${CIRCUIT_MIN_POINTS} points GPS pour créer une zone. Cours plus longtemps !`,
+        `Minimum ${CIRCUIT_MIN_POINTS} points GPS pour créer une zone. Cours encore un peu !`,
       );
       setCourse(INITIAL_COURSE);
       return;
     }
 
     if (!profil) return;
-
     setLoading(true);
 
     try {
@@ -222,18 +205,13 @@ export default function CarteScreen() {
         longitude: p.longitude,
       }));
 
-      const zonesConquises = detecterZonesConquises(
-        coordsCourse,
-        zones,
-        profil.uid,
-      );
-
+      const zonesConquises = detecterZonesConquises(coordsCourse, zones, profil.uid);
       const nouvelleZone = creerZone(points, profil, zonesConquises);
 
       if (!nouvelleZone) {
         Alert.alert(
           'Zone invalide',
-          'Le circuit tracé est trop petit. Essaie de tracer une surface plus grande.',
+          'Le circuit est trop petit. Trace une surface plus grande.',
         );
         setCourse(INITIAL_COURSE);
         setLoading(false);
@@ -252,9 +230,22 @@ export default function CarteScreen() {
         anciensProprio,
       );
 
-      setModalResultat({ visible: true, nouvelleZone, zonesConquises });
+      // Sauvegarde l'historique (non-bloquant, erreur ignorée)
+      sauvegarderHistoriqueCourse(profil.uid, {
+        date: Date.now(),
+        distanceM: Math.round(distanceM),
+        aireM2: nouvelleZone.aireM2,
+        zonesConquises: zonesConquises.length,
+      }).catch(() => {});
+
+      setModalResultat({
+        visible: true,
+        nouvelleZone,
+        zonesConquises,
+        distanceM,
+      });
     } catch {
-      Alert.alert('Erreur', 'Impossible de sauvegarder la course. Vérifie ta connexion.');
+      Alert.alert('Erreur', 'Impossible de sauvegarder. Vérifie ta connexion.');
     } finally {
       setCourse(INITIAL_COURSE);
       setLoading(false);
@@ -275,6 +266,21 @@ export default function CarteScreen() {
     };
   }, []);
 
+  // ─── Partager le résultat ───────────────────────────────────────────────
+
+  async function partagerResultat() {
+    if (!modalResultat.nouvelleZone) return;
+    const zone = modalResultat.nouvelleZone;
+    const dist = modalResultat.distanceM >= 1000
+      ? `${(modalResultat.distanceM / 1000).toFixed(2)} km`
+      : `${Math.round(modalResultat.distanceM)} m`;
+    const conq = modalResultat.zonesConquises.length > 0
+      ? ` et conquis ${modalResultat.zonesConquises.length} zone(s) adverse(s)` : '';
+    await Share.share({
+      message: `🏃 RunZone — J'ai tracé ${dist} et créé une zone de ${formatAire(zone.aireM2)}${conq} à Diego-Suarez ! Tu joues ?`,
+    });
+  }
+
   // ─── Bouton principal ───────────────────────────────────────────────────
 
   function handleBoutonCourse() {
@@ -283,7 +289,7 @@ export default function CarteScreen() {
         'Terminer la course ?',
         'Cela va créer ta zone à partir de ton tracé.',
         [
-          { text: 'Continuer à courir', style: 'cancel' },
+          { text: 'Continuer', style: 'cancel' },
           { text: 'Terminer', style: 'destructive', onPress: terminerCourse },
         ],
       );
@@ -300,7 +306,7 @@ export default function CarteScreen() {
         <Text style={styles.errTitle}>GPS désactivé</Text>
         <Text style={styles.errText}>
           RunZone a besoin du GPS pour tracer tes courses.{'\n'}
-          Active la localisation dans les paramètres de ton téléphone.
+          Active la localisation dans les paramètres.
         </Text>
       </View>
     );
@@ -313,12 +319,8 @@ export default function CarteScreen() {
 
   return (
     <View style={styles.root}>
-      {/* ─── Carte OpenStreetMap (Leaflet, sans clé API) ────────── */}
-      <MapLeaflet
-        ref={mapRef}
-        zones={zones}
-        traceCoords={traceCoords}
-      />
+      {/* ─── Carte OpenStreetMap Dark ───────────────────────────── */}
+      <MapLeaflet ref={mapRef} zones={zones} traceCoords={traceCoords} />
 
       {/* ─── Stats de course (overlay haut) ────────────────────── */}
       {course.isRunning && (
@@ -332,7 +334,18 @@ export default function CarteScreen() {
         </View>
       )}
 
-      {/* ─── Bouton central (bas de carte) ─────────────────────── */}
+      {/* ─── Bouton recentrer GPS (bas droite) ─────────────────── */}
+      {!course.isRunning && (
+        <TouchableOpacity
+          style={[styles.btnRecentrer, { bottom: insets.bottom + 170 }]}
+          onPress={centrerSurPosition}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.btnRecentrerIcon}>◎</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* ─── Bouton démarrer/terminer ───────────────────────────── */}
       <View style={[styles.boutonContainer, { paddingBottom: insets.bottom + 90 }]}>
         <BoutonCourse
           isRunning={course.isRunning}
@@ -342,12 +355,12 @@ export default function CarteScreen() {
         />
       </View>
 
-      {/* ─── Modal résultat de course ───────────────────────────── */}
+      {/* ─── Modal résultat ────────────────────────────────────── */}
       <Modal
         visible={modalResultat.visible}
         transparent
         animationType="slide"
-        onRequestClose={() => setModalResultat({ visible: false, zonesConquises: [] })}
+        onRequestClose={() => setModalResultat({ visible: false, zonesConquises: [], distanceM: 0 })}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -361,6 +374,13 @@ export default function CarteScreen() {
                 <Text style={styles.modalAire}>
                   {formatAire(modalResultat.nouvelleZone.aireM2)}
                 </Text>
+                {modalResultat.distanceM > 0 && (
+                  <Text style={styles.modalDist}>
+                    {modalResultat.distanceM >= 1000
+                      ? `${(modalResultat.distanceM / 1000).toFixed(2)} km parcourus`
+                      : `${Math.round(modalResultat.distanceM)} m parcourus`}
+                  </Text>
+                )}
               </>
             )}
 
@@ -377,12 +397,21 @@ export default function CarteScreen() {
               </View>
             )}
 
-            <TouchableOpacity
-              style={styles.modalBtn}
-              onPress={() => setModalResultat({ visible: false, zonesConquises: [] })}
-            >
-              <Text style={styles.modalBtnText}>Fermer</Text>
-            </TouchableOpacity>
+            {/* Boutons */}
+            <View style={styles.modalBtns}>
+              <TouchableOpacity
+                style={styles.modalBtnShare}
+                onPress={partagerResultat}
+              >
+                <Text style={styles.modalBtnShareText}>Partager</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalBtnClose}
+                onPress={() => setModalResultat({ visible: false, zonesConquises: [], distanceM: 0 })}
+              >
+                <Text style={styles.modalBtnCloseText}>Fermer</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -393,10 +422,7 @@ export default function CarteScreen() {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
+  root: { flex: 1, backgroundColor: Colors.background },
   centred: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -404,18 +430,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
-  errTitle: {
-    color: Colors.textPrimary,
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 12,
-  },
-  errText: {
-    color: Colors.textSecondary,
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
+  errTitle: { color: Colors.textPrimary, fontSize: 22, fontWeight: '800', marginBottom: 12 },
+  errText: { color: Colors.textSecondary, fontSize: 15, textAlign: 'center', lineHeight: 22 },
   statsContainer: {
     position: 'absolute',
     left: 12,
@@ -428,6 +444,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
   },
+  btnRecentrer: {
+    position: 'absolute',
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.tabBarBorder,
+  },
+  btnRecentrerIcon: { fontSize: 20, color: Colors.primary },
   boutonContainer: {
     position: 'absolute',
     bottom: 0,
@@ -469,10 +503,16 @@ const styles = StyleSheet.create({
     fontSize: 38,
     fontWeight: '900',
     textAlign: 'center',
-    marginVertical: 8,
+    marginVertical: 4,
+  },
+  modalDist: {
+    color: Colors.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 8,
   },
   modalConquetes: {
-    marginTop: 16,
+    marginTop: 12,
     backgroundColor: Colors.surface,
     borderRadius: 10,
     padding: 14,
@@ -488,16 +528,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
   },
-  modalBtn: {
+  modalBtns: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
+  },
+  modalBtnShare: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.tabBarBorder,
+  },
+  modalBtnShareText: { color: Colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  modalBtnClose: {
+    flex: 1,
     backgroundColor: Colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 24,
   },
-  modalBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  modalBtnCloseText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });

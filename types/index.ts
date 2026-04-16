@@ -38,6 +38,15 @@ export interface UserProfile {
   zonesCount: number;        // nombre de zones possédées
   coursesCount: number;      // nombre total de courses
   createdAt: number;
+  derniersCourses?: CourseHistoryEntry[]; // 5 dernières courses
+}
+
+/** Entrée d'historique de course (stockée dans le profil) */
+export interface CourseHistoryEntry {
+  date: number;          // timestamp Unix ms
+  distanceM: number;     // distance parcourue
+  aireM2: number;        // surface de la zone créée
+  zonesConquises: number; // zones adverses conquises
 }
 
 /** Session de course en cours */

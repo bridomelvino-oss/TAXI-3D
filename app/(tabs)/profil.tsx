@@ -23,8 +23,9 @@ import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth';
 
 import { getProfilUtilisateur } from '../../services/firebase';
 import { formatAire } from '../../services/zones';
+import { formatDuree } from '../../services/location';
 import { Colors } from '../../constants/colors';
-import { UserProfile } from '../../types';
+import { UserProfile, CourseHistoryEntry } from '../../types';
 
 export default function ProfilScreen() {
   const insets = useSafeAreaInsets();
@@ -148,6 +149,18 @@ export default function ProfilScreen() {
         />
       </View>
 
+      {/* Historique des courses */}
+      {profil.derniersCourses && profil.derniersCourses.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Dernières courses</Text>
+          <View style={styles.histoList}>
+            {profil.derniersCourses.map((c, i) => (
+              <HistoCourseRow key={i} course={c} />
+            ))}
+          </View>
+        </>
+      )}
+
       {/* Conseils */}
       <View style={styles.tipsCard}>
         <Text style={styles.tipsTitle}>Comment jouer</Text>
@@ -194,6 +207,28 @@ function StatCard({
         {valeur}
       </Text>
       <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function HistoCourseRow({ course }: { course: CourseHistoryEntry }) {
+  const dist = course.distanceM >= 1000
+    ? `${(course.distanceM / 1000).toFixed(2)} km`
+    : `${course.distanceM} m`;
+  const date = new Date(course.date);
+  const dateStr = `${date.getDate().toString().padStart(2,'0')}/${(date.getMonth()+1).toString().padStart(2,'0')} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
+  return (
+    <View style={styles.histoRow}>
+      <View style={styles.histoLeft}>
+        <Text style={styles.histoDist}>{dist}</Text>
+        <Text style={styles.histoDate}>{dateStr}</Text>
+      </View>
+      <View style={styles.histoRight}>
+        <Text style={styles.histoAire}>{formatAire(course.aireM2)}</Text>
+        {course.zonesConquises > 0 && (
+          <Text style={styles.histoConq}>⚔️ {course.zonesConquises}</Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -317,6 +352,31 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
+
+  // Historique
+  histoList: {
+    marginBottom: 24,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.tabBarBorder,
+  },
+  histoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.tabBarBorder,
+  },
+  histoLeft: { flex: 1 },
+  histoRight: { alignItems: 'flex-end' },
+  histoDist: { color: Colors.textPrimary, fontSize: 15, fontWeight: '700' },
+  histoDate: { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
+  histoAire: { color: Colors.secondary, fontSize: 14, fontWeight: '700' },
+  histoConq: { color: Colors.primary, fontSize: 11, marginTop: 2 },
 
   // Tips
   tipsCard: {
