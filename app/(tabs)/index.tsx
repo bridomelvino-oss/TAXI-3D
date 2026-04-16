@@ -2,7 +2,7 @@
 // Écran principal — Carte + Course
 //
 // Fonctionnalités :
-//  1. Carte Google Maps centrée sur la position GPS
+//  1. Carte OpenStreetMap (Leaflet via WebView — pas de clé API)
 //  2. Tracking GPS temps réel avec tracé sur la carte
 //  3. Overlay stats de course (distance, durée, vitesse)
 //  4. Bouton démarrer/terminer la course
@@ -19,11 +19,10 @@ import {
   Modal,
   TouchableOpacity,
 } from 'react-native';
-import MapView, { Polyline } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
-import MapZone from '../../components/MapZone';
+import MapLeaflet, { MapLeafletRef } from '../../components/MapLeaflet';
 import CourseStats from '../../components/CourseStats';
 import BoutonCourse from '../../components/BoutonCourse';
 
@@ -46,12 +45,7 @@ import {
 } from '../../services/zones';
 
 import { Colors } from '../../constants/colors';
-import {
-  DIEGO_CENTER,
-  CARTE_DELTA_INITIAL,
-  CARTE_DELTA_COURSE,
-  CIRCUIT_MIN_POINTS,
-} from '../../constants/config';
+import { CIRCUIT_MIN_POINTS } from '../../constants/config';
 import { Coordinate, GpsPoint, Zone, UserProfile } from '../../types';
 
 // ─── Types locaux ────────────────────────────────────────────────────────────
@@ -78,19 +72,15 @@ const INITIAL_COURSE: CourseState = {
 
 export default function CarteScreen() {
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<MapLeafletRef>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // État utilisateur
   const [profil, setProfil] = useState<UserProfile | null>(null);
   const [permisGPS, setPermisGPS] = useState<boolean | null>(null);
 
-  // État carte
-  const [regionInitialisee, setRegionInitialisee] = useState(false);
+  // État zones et course
   const [zones, setZones] = useState<Zone[]>([]);
-  const [zoneSelectionnee, setZoneSelectionnee] = useState<Zone | null>(null);
-
-  // État course
   const [course, setCourse] = useState<CourseState>(INITIAL_COURSE);
   const [loading, setLoading] = useState(false);
 
@@ -104,7 +94,6 @@ export default function CarteScreen() {
   // ─── Initialisation ─────────────────────────────────────────────────────
 
   useEffect(() => {
-    // Charge le profil utilisateur dès connexion
     const auth = getAuth();
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -116,13 +105,11 @@ export default function CarteScreen() {
   }, []);
 
   useEffect(() => {
-    // Abonnement temps réel aux zones
     const unsub = ecouterZones(setZones);
     return () => unsub();
   }, []);
 
   useEffect(() => {
-    // Demande les permissions GPS au montage
     demanderPermissionsGPS().then((ok) => {
       setPermisGPS(ok);
       if (ok) centrerSurPosition();
@@ -135,9 +122,7 @@ export default function CarteScreen() {
     const pos = await getPositionActuelle();
     if (!pos) return;
     const { latitude, longitude } = pos.coords;
-    const region = { latitude, longitude, ...CARTE_DELTA_INITIAL };
-    mapRef.current?.animateToRegion(region, 800);
-    setRegionInitialisee(true);
+    mapRef.current?.centerOn(latitude, longitude);
   }
 
   // ─── Démarrer la course ─────────────────────────────────────────────────
@@ -150,7 +135,6 @@ export default function CarteScreen() {
 
     setLoading(true);
 
-    // Vérification permissions
     const ok = await demanderPermissionsGPS();
     if (!ok) {
       Alert.alert(
@@ -164,7 +148,6 @@ export default function CarteScreen() {
     const now = Date.now();
     setCourse({ ...INITIAL_COURSE, isRunning: true, startedAt: now });
 
-    // Timer pour mettre à jour la durée chaque seconde
     timerRef.current = setInterval(() => {
       setCourse((prev) =>
         prev.isRunning
@@ -173,7 +156,6 @@ export default function CarteScreen() {
       );
     }, 1000);
 
-    // Démarrage tracking GPS
     const success = await demarrerTracking(
       (point) => {
         setCourse((prev) => {
@@ -186,11 +168,8 @@ export default function CarteScreen() {
 
           const nouveauxPoints = [...prev.points, point];
 
-          // Centre la carte sur la position actuelle
-          mapRef.current?.animateToRegion(
-            { ...point, ...CARTE_DELTA_COURSE },
-            300,
-          );
+          // Met à jour la position sur la carte Leaflet
+          mapRef.current?.updateLocation(point.latitude, point.longitude);
 
           return {
             ...prev,
@@ -238,7 +217,6 @@ export default function CarteScreen() {
     setLoading(true);
 
     try {
-      // Détecte les zones conquises
       const coordsCourse: Coordinate[] = points.map((p) => ({
         latitude: p.latitude,
         longitude: p.longitude,
@@ -250,20 +228,18 @@ export default function CarteScreen() {
         profil.uid,
       );
 
-      // Crée la nouvelle zone
       const nouvelleZone = creerZone(points, profil, zonesConquises);
 
       if (!nouvelleZone) {
         Alert.alert(
           'Zone invalide',
-          'Le circuit tracé est trop petit ou trop peu précis. Essaie de tracer une surface plus grande.',
+          'Le circuit tracé est trop petit. Essaie de tracer une surface plus grande.',
         );
         setCourse(INITIAL_COURSE);
         setLoading(false);
         return;
       }
 
-      // Sauvegarde sur Firebase (transaction atomique)
       const anciensProprio = zonesConquises.map((z) => ({
         uid: z.ownerId,
         aireM2: z.aireM2,
@@ -276,13 +252,8 @@ export default function CarteScreen() {
         anciensProprio,
       );
 
-      // Affiche le modal résultat
-      setModalResultat({
-        visible: true,
-        nouvelleZone,
-        zonesConquises,
-      });
-    } catch (err) {
+      setModalResultat({ visible: true, nouvelleZone, zonesConquises });
+    } catch {
       Alert.alert('Erreur', 'Impossible de sauvegarder la course. Vérifie ta connexion.');
     } finally {
       setCourse(INITIAL_COURSE);
@@ -297,7 +268,6 @@ export default function CarteScreen() {
     }
   }
 
-  // Nettoyage au démontage
   useEffect(() => {
     return () => {
       arreterCourseTimer();
@@ -324,7 +294,6 @@ export default function CarteScreen() {
 
   // ─── Rendu ──────────────────────────────────────────────────────────────
 
-  // Pas de permission GPS
   if (permisGPS === false) {
     return (
       <View style={styles.centred}>
@@ -344,41 +313,12 @@ export default function CarteScreen() {
 
   return (
     <View style={styles.root}>
-      {/* ─── Carte ─────────────────────────────────────────────── */}
-      <MapView
+      {/* ─── Carte OpenStreetMap (Leaflet, sans clé API) ────────── */}
+      <MapLeaflet
         ref={mapRef}
-        style={StyleSheet.absoluteFillObject}
-        initialRegion={{ ...DIEGO_CENTER, ...CARTE_DELTA_INITIAL }}
-        showsUserLocation
-        showsMyLocationButton={false}
-        showsCompass={false}
-        rotateEnabled={false}
-        toolbarEnabled={false}
-        onMapReady={() => {
-          if (!regionInitialisee) centrerSurPosition();
-        }}
-      >
-        {/* Zones des joueurs */}
-        {zones.map((zone) => (
-          <MapZone
-            key={zone.id}
-            zone={zone}
-            highlighted={zoneSelectionnee?.id === zone.id}
-            onPress={(z) =>
-              setZoneSelectionnee((prev) => (prev?.id === z.id ? null : z))
-            }
-          />
-        ))}
-
-        {/* Tracé de la course en cours */}
-        {traceCoords.length > 1 && (
-          <Polyline
-            coordinates={traceCoords}
-            strokeColor={Colors.traceColor}
-            strokeWidth={3}
-          />
-        )}
-      </MapView>
+        zones={zones}
+        traceCoords={traceCoords}
+      />
 
       {/* ─── Stats de course (overlay haut) ────────────────────── */}
       {course.isRunning && (
