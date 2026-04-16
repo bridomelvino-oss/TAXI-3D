@@ -43,7 +43,7 @@ body,html{width:100%;height:100%;background:#0D0D0D}
 <div id="map"></div>
 <script>
 var map=L.map('map',{zoomControl:false,attributionControl:false}).setView([-12.355,49.3],15);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:''}).addTo(map);
 
 var dot=null,line=null,zones={};
 
