@@ -28,8 +28,6 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "RECEIVE_BOOT_COMPLETED",
         "VIBRATE"
       ]
     },
@@ -43,16 +41,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "RunZone a besoin de ta position pour tracer ta course.",
-          "isAndroidBackgroundLocationEnabled": true
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#FF4136",
-          "sounds": []
+          "locationWhenInUsePermission": "RunZone a besoin de ta position pour tracer ta course."
         }
       ]
     ],

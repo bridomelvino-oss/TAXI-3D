@@ -50,7 +50,6 @@ export async function getPositionActuelle(): Promise<Location.LocationObject | n
   try {
     const pos = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.High,
-      timeInterval: 10000,
     });
     return pos;
   } catch {
