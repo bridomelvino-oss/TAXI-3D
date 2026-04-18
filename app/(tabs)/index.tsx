@@ -33,6 +33,7 @@ import {
   arreterTracking,
   getPositionActuelle,
   calculerDistanceTotale,
+  estCircuitFerme,
 } from '../../services/location';
 import {
   ecouterZones,
@@ -47,7 +48,7 @@ import {
 } from '../../services/zones';
 
 import { Colors } from '../../constants/colors';
-import { CIRCUIT_MIN_POINTS } from '../../constants/config';
+import { CIRCUIT_MIN_POINTS, CIRCUIT_CLOSE_DISTANCE_M } from '../../constants/config';
 import { Coordinate, GpsPoint, Zone, UserProfile } from '../../types';
 
 // ─── Types locaux ────────────────────────────────────────────────────────────
@@ -76,6 +77,9 @@ export default function CarteScreen() {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapLeafletRef>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const circuitFermeRef = useRef(false);
+  const startShownRef = useRef(false);
+  const terminerCourseRef = useRef<() => Promise<void>>();
 
   const [profil, setProfil] = useState<UserProfile | null>(null);
   const [permisGPS, setPermisGPS] = useState<boolean | null>(null);
@@ -141,6 +145,8 @@ export default function CarteScreen() {
     }
 
     const now = Date.now();
+    circuitFermeRef.current = false;
+    startShownRef.current = false;
     setCourse({ ...INITIAL_COURSE, isRunning: true, startedAt: now });
 
     timerRef.current = setInterval(() => {
@@ -151,11 +157,15 @@ export default function CarteScreen() {
 
     const success = await demarrerTracking(
       (point) => {
+        if (!startShownRef.current) {
+          startShownRef.current = true;
+          mapRef.current?.showStart(point.latitude, point.longitude);
+        }
+        mapRef.current?.updateLocation(point.latitude, point.longitude, point.accuracy);
         setCourse((prev) => {
           if (!prev.isRunning) return prev;
           const dernierPoint = prev.points[prev.points.length - 1];
           const delta = dernierPoint ? calculerDistanceTotale([dernierPoint, point]) : 0;
-          mapRef.current?.updateLocation(point.latitude, point.longitude, point.accuracy);
           return {
             ...prev,
             points: [...prev.points, point],
@@ -257,7 +267,28 @@ export default function CarteScreen() {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    mapRef.current?.clearStart();
   }
+
+  // Keep ref pointing to latest terminerCourse (avoids stale closure in Alert)
+  terminerCourseRef.current = terminerCourse;
+
+  // Auto circuit-close detection
+  useEffect(() => {
+    if (!course.isRunning || course.points.length < CIRCUIT_MIN_POINTS + 2) return;
+    if (circuitFermeRef.current) return;
+    const coords = course.points.map((p) => ({ latitude: p.latitude, longitude: p.longitude }));
+    if (!estCircuitFerme(coords, CIRCUIT_CLOSE_DISTANCE_M)) return;
+    circuitFermeRef.current = true;
+    Alert.alert(
+      'Circuit bouclé !',
+      'Tu es revenu à ton point de départ. Créer la zone maintenant ?',
+      [
+        { text: 'Continuer', style: 'cancel' },
+        { text: 'Créer la zone', onPress: () => terminerCourseRef.current?.() },
+      ],
+    );
+  }, [course.points.length]);
 
   useEffect(() => {
     return () => {
@@ -279,6 +310,20 @@ export default function CarteScreen() {
     await Share.share({
       message: `🏃 RunZone — J'ai tracé ${dist} et créé une zone de ${formatAire(zone.aireM2)}${conq} à Diego-Suarez ! Tu joues ?`,
     });
+  }
+
+  // ─── Tap sur une zone ───────────────────────────────────────────────────
+
+  function handleZonePress(zoneId: string) {
+    const zone = zones.find((z) => z.id === zoneId);
+    if (!zone) return;
+    const date = new Date(zone.createdAt);
+    const dateStr = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+    const isMine = zone.ownerId === profil?.uid;
+    Alert.alert(
+      isMine ? '⭐ Ta zone' : `Zone de ${zone.ownerName}`,
+      `Surface : ${formatAire(zone.aireM2)}\nCréée le : ${dateStr}`,
+    );
   }
 
   // ─── Bouton principal ───────────────────────────────────────────────────
@@ -320,7 +365,7 @@ export default function CarteScreen() {
   return (
     <View style={styles.root}>
       {/* ─── Carte OpenStreetMap Dark ───────────────────────────── */}
-      <MapLeaflet ref={mapRef} zones={zones} traceCoords={traceCoords} />
+      <MapLeaflet ref={mapRef} zones={zones} traceCoords={traceCoords} onZonePress={handleZonePress} />
 
       {/* ─── Stats de course (overlay haut) ────────────────────── */}
       {course.isRunning && (
@@ -335,15 +380,13 @@ export default function CarteScreen() {
       )}
 
       {/* ─── Bouton recentrer GPS (bas droite) ─────────────────── */}
-      {!course.isRunning && (
-        <TouchableOpacity
-          style={[styles.btnRecentrer, { bottom: insets.bottom + 170 }]}
-          onPress={centrerSurPosition}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.btnRecentrerIcon}>◎</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        style={[styles.btnRecentrer, { bottom: insets.bottom + 170 }]}
+        onPress={centrerSurPosition}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.btnRecentrerIcon}>◎</Text>
+      </TouchableOpacity>
 
       {/* ─── Bouton démarrer/terminer ───────────────────────────── */}
       <View style={[styles.boutonContainer, { paddingBottom: insets.bottom + 90 }]}>

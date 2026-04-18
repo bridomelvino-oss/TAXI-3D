@@ -15,11 +15,14 @@ import { Coordinate, Zone } from '../types';
 export interface MapLeafletRef {
   centerOn: (lat: number, lng: number) => void;
   updateLocation: (lat: number, lng: number, accuracy?: number) => void;
+  showStart: (lat: number, lng: number) => void;
+  clearStart: () => void;
 }
 
 interface Props {
   zones: Zone[];
   traceCoords: Coordinate[];
+  onZonePress?: (zoneId: string) => void;
 }
 
 // HTML complet avec Leaflet embarqué via CDN
@@ -45,7 +48,7 @@ body,html{width:100%;height:100%;background:#0D0D0D}
 var map=L.map('map',{zoomControl:false,attributionControl:false}).setView([-12.355,49.3],15);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:''}).addTo(map);
 
-var dot=null,acc=null,line=null,zones={};
+var dot=null,acc=null,line=null,startMark=null,zones={};
 
 function recv(d){
   if(!d||!d.t)return;
@@ -73,6 +76,12 @@ function recv(d){
       line=L.polyline(d.p,{color:'#FF4136',weight:4,opacity:1}).addTo(map);
     }
   }
+  if(d.t==='s'){
+    if(startMark){map.removeLayer(startMark);startMark=null;}
+    if(d.lat!=null){
+      startMark=L.circleMarker([d.lat,d.lng],{radius:8,fillColor:'#00C853',color:'#fff',weight:3,fillOpacity:1}).addTo(map);
+    }
+  }
   if(d.t==='z'){
     Object.keys(zones).forEach(function(k){map.removeLayer(zones[k]);});
     zones={};
@@ -84,6 +93,9 @@ function recv(d){
       }).addTo(map);
       poly.bindTooltip(z.ownerName,{
         permanent:true,direction:'center',className:'zt'
+      });
+      poly.on('click',function(){
+        try{if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify({type:'zc',id:z.id}));}catch(e){}
       });
       zones[z.id]=poly;
     });
@@ -99,7 +111,7 @@ document.addEventListener('message',onMsg);
 </body>
 </html>`;
 
-const MapLeaflet = forwardRef<MapLeafletRef, Props>(({ zones, traceCoords }, ref) => {
+const MapLeaflet = forwardRef<MapLeafletRef, Props>(({ zones, traceCoords, onZonePress }, ref) => {
   const wv = useRef<WebView>(null);
 
   function send(obj: object) {
@@ -111,6 +123,8 @@ const MapLeaflet = forwardRef<MapLeafletRef, Props>(({ zones, traceCoords }, ref
   useImperativeHandle(ref, () => ({
     centerOn:       (lat, lng) => send({ t: 'c', lat, lng }),
     updateLocation: (lat, lng, accuracy) => send({ t: 'l', lat, lng, a: accuracy }),
+    showStart:      (lat, lng) => send({ t: 's', lat, lng }),
+    clearStart:     () => send({ t: 's', lat: null, lng: null }),
   }));
 
   useEffect(() => {
@@ -133,6 +147,12 @@ const MapLeaflet = forwardRef<MapLeafletRef, Props>(({ zones, traceCoords }, ref
       originWhitelist={['*']}
       mixedContentMode="always"
       startInLoadingState={false}
+      onMessage={(event) => {
+        try {
+          const data = JSON.parse(event.nativeEvent.data);
+          if (data.type === 'zc') onZonePress?.(data.id);
+        } catch {}
+      }}
     />
   );
 });

@@ -22,6 +22,7 @@ import {
   updateDoc,
   onSnapshot,
   query,
+  where,
   orderBy,
   limit,
   deleteDoc,
@@ -253,6 +254,30 @@ export function ecouterClassement(
     callback(entries);
   }, (err) => {
     console.error('[RunZone] ecouterClassement error:', err.message);
-    callback([]); // arrête le spinner infini dans l'écran classement
+    callback([]);
+  });
+}
+
+/**
+ * Écoute en temps réel les zones appartenant à un joueur spécifique.
+ */
+export function ecouterZonesUtilisateur(
+  uid: string,
+  callback: (zones: Zone[]) => void,
+): () => void {
+  const q = query(
+    collection(db, FIRESTORE_COLLECTIONS.zones),
+    where('ownerId', '==', uid),
+    orderBy('createdAt', 'desc'),
+    limit(20),
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const zones: Zone[] = [];
+    snapshot.forEach((d) => zones.push(d.data() as Zone));
+    callback(zones);
+  }, (err) => {
+    console.error('[RunZone] ecouterZonesUtilisateur error:', err.message);
+    callback([]);
   });
 }

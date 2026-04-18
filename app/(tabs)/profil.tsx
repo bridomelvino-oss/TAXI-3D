@@ -21,16 +21,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth';
 
-import { getProfilUtilisateur } from '../../services/firebase';
+import { getProfilUtilisateur, ecouterZonesUtilisateur } from '../../services/firebase';
 import { formatAire } from '../../services/zones';
 import { formatDuree } from '../../services/location';
 import { Colors } from '../../constants/colors';
-import { UserProfile, CourseHistoryEntry } from '../../types';
+import { UserProfile, CourseHistoryEntry, Zone } from '../../types';
 
 export default function ProfilScreen() {
   const insets = useSafeAreaInsets();
   const auth = getAuth();
   const [profil, setProfil] = useState<UserProfile | null>(null);
+  const [mesZones, setMesZones] = useState<Zone[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -42,14 +43,19 @@ export default function ProfilScreen() {
   }, []);
 
   useEffect(() => {
+    let unsubZones: (() => void) | null = null;
     const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
         chargerProfil(user.uid);
+        unsubZones = ecouterZonesUtilisateur(user.uid, setMesZones);
       } else {
         setLoading(false);
       }
     });
-    return () => unsub();
+    return () => {
+      unsub();
+      unsubZones?.();
+    };
   }, []);
 
   function onRefresh() {
@@ -161,6 +167,18 @@ export default function ProfilScreen() {
         </>
       )}
 
+      {/* Mes zones actives */}
+      {mesZones.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Mes zones actives</Text>
+          <View style={styles.zonesGrid}>
+            {mesZones.map((z) => (
+              <MaZoneCard key={z.id} zone={z} />
+            ))}
+          </View>
+        </>
+      )}
+
       {/* Conseils */}
       <View style={styles.tipsCard}>
         <Text style={styles.tipsTitle}>Comment jouer</Text>
@@ -228,6 +246,22 @@ function HistoCourseRow({ course }: { course: CourseHistoryEntry }) {
         {course.zonesConquises > 0 && (
           <Text style={styles.histoConq}>⚔️ {course.zonesConquises}</Text>
         )}
+      </View>
+    </View>
+  );
+}
+
+function MaZoneCard({ zone }: { zone: Zone }) {
+  const date = new Date(zone.createdAt);
+  const dateStr = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+  return (
+    <View style={[styles.zoneCard, { borderColor: zone.ownerColor + '66' }]}>
+      <View style={[styles.zoneColorBar, { backgroundColor: zone.ownerColor }]} />
+      <View style={styles.zoneInfo}>
+        <Text style={[styles.zoneAire, { color: zone.ownerColor }]} numberOfLines={1} adjustsFontSizeToFit>
+          {formatAire(zone.aireM2)}
+        </Text>
+        <Text style={styles.zoneDate}>{dateStr}</Text>
       </View>
     </View>
   );
@@ -408,6 +442,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     flex: 1,
     lineHeight: 19,
+  },
+
+  // Mes zones
+  zonesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 24,
+  },
+  zoneCard: {
+    width: '47%',
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  zoneColorBar: {
+    width: 4,
+  },
+  zoneInfo: {
+    flex: 1,
+    padding: 10,
+  },
+  zoneAire: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  zoneDate: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    marginTop: 2,
   },
 
   // Déconnexion
