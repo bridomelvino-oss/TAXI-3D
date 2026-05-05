@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef } from "react"
+import Image from "next/image"
 import { motion, useScroll, useTransform } from "framer-motion"
 import { hero } from "@/lib/content"
 import { NewsletterForm } from "@/components/ui/NewsletterForm"
@@ -29,31 +30,49 @@ export function Hero() {
       className="relative flex h-svh min-h-[600px] flex-col items-start justify-end overflow-hidden"
       aria-labelledby="hero-heading"
     >
-      {/* Background layer — gradient evocating Diego sunset over the bay */}
-      {/* Replace with next/image for a real photo of Diego */}
+      {/* Background — photo si définie dans content.ts, gradient sinon */}
       <motion.div
         style={{ y: bgY }}
         className="absolute inset-0 -top-[8%]"
         aria-hidden
       >
         <div className="absolute inset-0 bg-void" />
-        {/* Sunset glow — warm amber radiating from lower-right, suggesting the bay */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse 90% 70% at 80% 110%, rgba(196,129,58,0.18) 0%, rgba(196,129,58,0.04) 45%, transparent 70%)",
-          }}
-        />
-        {/* Subtle top-left counter-light for depth */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse 50% 40% at 5% 5%, rgba(30,77,64,0.12) 0%, transparent 60%)",
-          }}
-        />
-        {/* Grain texture overlay for premium feel */}
+
+        {hero.heroImage ? (
+          /* Photo réelle — ajoute l'URL dans lib/content.ts → heroImage */
+          <>
+            <Image
+              src={hero.heroImage}
+              alt={hero.heroImageAlt}
+              fill
+              priority
+              className="object-cover opacity-50"
+              sizes="100vw"
+            />
+            {/* Overlay pour garder le texte lisible */}
+            <div className="absolute inset-0 bg-gradient-to-t from-void via-void/70 to-void/30" />
+          </>
+        ) : (
+          /* Gradient par défaut — coucher de soleil sur la baie */
+          <>
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(ellipse 90% 70% at 80% 110%, rgba(196,129,58,0.18) 0%, rgba(196,129,58,0.04) 45%, transparent 70%)",
+              }}
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(ellipse 50% 40% at 5% 5%, rgba(30,77,64,0.12) 0%, transparent 60%)",
+              }}
+            />
+          </>
+        )}
+
+        {/* Grain texture — touche premium */}
         <div
           className="absolute inset-0 opacity-[0.025]"
           style={{

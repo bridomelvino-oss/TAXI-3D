@@ -19,7 +19,8 @@ export function NewsletterForm({
   cta = "S'abonner",
   variant = "hero",
 }: NewsletterFormProps) {
-  const [status, setStatus] = useState<"idle" | "loading" | "success">("idle")
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+  const [serverError, setServerError] = useState<string | null>(null)
 
   const {
     register,
@@ -32,18 +33,36 @@ export function NewsletterForm({
 
   const onSubmit = async (data: NewsletterFormData) => {
     setStatus("loading")
-    // TODO: replace with real API endpoint
-    await new Promise((r) => setTimeout(r, 900))
-    console.info("Newsletter subscription:", data.email)
-    setStatus("success")
-    reset()
-    setTimeout(() => setStatus("idle"), 4000)
+    setServerError(null)
+
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+
+      const json = (await res.json()) as { success?: boolean; error?: string }
+
+      if (!res.ok || !json.success) {
+        setServerError(json.error ?? "Une erreur est survenue. Réessaie.")
+        setStatus("error")
+        return
+      }
+
+      setStatus("success")
+      reset()
+      setTimeout(() => setStatus("idle"), 5000)
+    } catch {
+      setServerError("Connexion impossible. Vérifie ta connexion et réessaie.")
+      setStatus("error")
+    }
   }
 
   const isFinal = variant === "final"
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-3">
       <AnimatePresence mode="wait">
         {status === "success" ? (
           <motion.div
@@ -143,6 +162,22 @@ export function NewsletterForm({
               </span>
             </button>
           </motion.form>
+        )}
+      </AnimatePresence>
+
+      {/* Erreur serveur */}
+      <AnimatePresence>
+        {status === "error" && serverError && (
+          <motion.p
+            role="alert"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.65, 0, 0.35, 1] }}
+            className="font-body text-xs text-gold/70"
+          >
+            {serverError}
+          </motion.p>
         )}
       </AnimatePresence>
     </div>

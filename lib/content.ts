@@ -19,6 +19,11 @@ export const hero = {
     "L'actualité qui façonne Madagascar — décryptée chaque semaine, livrée directement chez vous.",
   cta: "S'abonner",
   ctaPlaceholder: "votre@email.com",
+  // Photo de fond du hero.
+  // → Mets ici l'URL d'une photo de Diego (Unsplash, Google Drive direct, etc.)
+  // → null = utilise le gradient par défaut
+  heroImage: null as string | null,
+  heroImageAlt: "La baie de Diego Suarez au coucher du soleil",
 }
 
 export const manifeste = {
