@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand colors */
+  --color-void: #0a0a0a;
+  --color-ivory: #f5f1e8;
+  --color-ivory-dim: #e8e2d4;
+  --color-ivory-muted: #d4ccbc;
+  --color-gold: #c4813a;
+  --color-gold-light: #d4975a;
+  --color-gold-muted: rgba(196, 129, 58, 0.15);
+  --color-emerald: #1e4d40;
+  --color-mist: #6b6058;
+  --color-mist-light: #9b9088;
+
+  /* Typography */
+  --font-display: var(--font-fraunces), "Georgia", "Times New Roman", serif;
+  --font-body: var(--font-inter), system-ui, -apple-system, sans-serif;
+
+  /* Spacing & sizing */
+  --spacing-section: 7rem;
+}
+
+/* ─── Base ─────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: auto; /* Lenis handles smooth scroll */
+}
+
+body {
+  background-color: #0a0a0a;
+  color: #f5f1e8;
+  font-family: var(--font-body);
+  overflow-x: hidden;
+  cursor: none; /* Custom cursor on desktop */
+}
+
+@media (hover: none) {
+  body {
+    cursor: auto;
+  }
+}
+
+/* ─── Selection ─────────────────────────────────────────────── */
+
+::selection {
+  background-color: rgba(196, 129, 58, 0.3);
+  color: #f5f1e8;
+}
+
+/* ─── Focus visible ──────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid #c4813a;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+  background: #c4813a;
+  border-radius: 2px;
+}
+
+/* ─── Typography utilities ───────────────────────────────────── */
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+/* Underline draw animation — left to right */
+.link-underline {
+  position: relative;
+  text-decoration: none;
+}
+
+.link-underline::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background-color: currentColor;
+  transition: width 0.4s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.link-underline:hover::after {
+  width: 100%;
+}
+
+/* Gold underline variant */
+.link-underline-gold::after {
+  background-color: #c4813a;
+}
+
+/* ─── Animations ─────────────────────────────────────────────── */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.7s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
