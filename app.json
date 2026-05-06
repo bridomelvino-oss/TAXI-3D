@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "RunZone",
+    "slug": "runzone",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D0D0D"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.runzone.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "RunZone a besoin de ta position pour tracer ta course.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "RunZone a besoin de ta position en arrière-plan pour continuer le tracé pendant ta course."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0D0D0D"
+      },
+      "package": "com.runzone.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "RunZone a besoin de ta position pour tracer ta course."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "scheme": "runzone",
+    "extra": {
+      "router": {
+        "origin": false
+      }
+    }
+  }
+}
