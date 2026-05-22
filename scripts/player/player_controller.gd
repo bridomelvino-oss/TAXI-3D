@@ -66,13 +66,43 @@ var _slide_dir := Vector3.ZERO
 
 
 func _ready() -> void:
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	floor_max_angle = deg_to_rad(50)
 	floor_snap_length = 0.35
 	_set_sliding_collision(false)
+	if is_local():
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_install_synchronizer()
+
+
+func is_local() -> bool:
+	return not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()
+
+
+func _install_synchronizer() -> void:
+	# Build a MultiplayerSynchronizer in code so the .tscn stays clean.
+	if not multiplayer.has_multiplayer_peer():
+		return
+	if has_node("Sync"):
+		return
+	var sync := MultiplayerSynchronizer.new()
+	sync.name = "Sync"
+	var cfg := SceneReplicationConfig.new()
+	cfg.add_property(NodePath(".:position"))
+	cfg.add_property(NodePath(".:rotation"))
+	cfg.add_property(NodePath(".:velocity"))
+	cfg.add_property(NodePath("CameraPivot:rotation"))
+	sync.replication_config = cfg
+	sync.replication_interval = 0.033  # ~30 Hz
+	add_child(sync)
+	# The owning peer is the one that emits state for this player.
+	sync.set_multiplayer_authority(get_multiplayer_authority())
 
 
 func _physics_process(delta: float) -> void:
+	if not is_local():
+		# Remote players move via replicated transform; still let physics settle.
+		move_and_slide()
+		return
 	var now := Time.get_ticks_msec() / 1000.0
 
 	# --- buffer jump input ---

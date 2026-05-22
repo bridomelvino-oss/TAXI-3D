@@ -1,8 +1,7 @@
-[gd_scene load_steps=7 format=3 uid="uid://b_main_runzone"]
+[gd_scene load_steps=6 format=3 uid="uid://b_main_runzone"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/world/voxel_world.gd" id="2"]
-[ext_resource type="PackedScene" uid="uid://b_player_runzone" path="res://scenes/player/player.tscn" id="3"]
 [ext_resource type="PackedScene" uid="uid://b_hud_runzone" path="res://scenes/ui/hud.tscn" id="4"]
 
 [sub_resource type="ProceduralSkyMaterial" id="Sky"]
@@ -41,9 +40,13 @@ directional_shadow_max_distance = 80.0
 
 [node name="VoxelWorld" type="Node3D" parent="."]
 script = ExtResource("2")
-world_size_chunks = Vector3i(4, 1, 4)
+view_radius_chunks = 4
+vertical_chunks = 3
 
-[node name="Player" parent="." instance=ExtResource("3")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32, 14, 32)
+[node name="Players" type="Node3D" parent="."]
+
+[node name="PlayerSpawner" type="MultiplayerSpawner" parent="."]
+spawn_path = NodePath("../Players")
+spawn_limit = 32
 
 [node name="HUD" parent="." instance=ExtResource("4")]

@@ -14,15 +14,20 @@ signal shot_fired(color: Color)
 var _camera: Camera3D
 var _world: VoxelWorld
 var _last_shot := -10.0
+var _owner_player: PlayerController
 
 
 func setup(camera: Camera3D, world: VoxelWorld) -> void:
 	_camera = camera
 	_world = world
+	_owner_player = camera.get_parent().get_parent() as PlayerController
 
 
 func _process(_delta: float) -> void:
 	if _camera == null: return
+	# Only the locally-controlled player drives the gun.
+	if _owner_player and not _owner_player.is_local():
+		return
 	if Input.is_action_pressed("shoot"):
 		_try_shoot()
 	if Input.is_action_just_pressed("place_block"):
@@ -76,7 +81,7 @@ func _place_block() -> void:
 	if hit.is_empty(): return
 	var pos := hit.position + hit.normal * 0.5
 	var bp := Vector3i(floori(pos.x), floori(pos.y), floori(pos.z))
-	_world.set_block_world(bp, GameSettings.current_block_id)
+	_world.request_set_block(bp, GameSettings.current_block_id)
 
 
 func _break_block() -> void:
@@ -85,4 +90,4 @@ func _break_block() -> void:
 	if hit.is_empty(): return
 	var pos := hit.position - hit.normal * 0.5
 	var bp := Vector3i(floori(pos.x), floori(pos.y), floori(pos.z))
-	_world.set_block_world(bp, BlockDB.AIR)
+	_world.request_set_block(bp, BlockDB.AIR)

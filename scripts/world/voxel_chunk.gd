@@ -33,7 +33,8 @@ var _material: StandardMaterial3D
 func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 0
-	blocks.resize(SIZE * SIZE * SIZE)
+	if blocks.size() != SIZE * SIZE * SIZE:
+		blocks.resize(SIZE * SIZE * SIZE)
 	_mesh_instance = MeshInstance3D.new()
 	add_child(_mesh_instance)
 	_collision_shape = CollisionShape3D.new()

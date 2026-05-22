@@ -28,9 +28,18 @@ func _ready() -> void:
 		_player.landed.connect(_on_landed)
 		_player.jumped.connect(_on_jumped)
 		_player.wall_jumped.connect(_on_wall_jumped)
+	# Disable input + camera if this is a remote player.
+	if _player and not _player.is_local():
+		_camera.current = false
+		set_process_unhandled_input(false)
+		# Show their stickman so we can see them.
+		_tps_mode = true
+		_apply_view_visibility()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _player and not _player.is_local():
+		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var mm := event as InputEventMouseMotion
 		rotation.y -= mm.relative.x * GameSettings.mouse_sensitivity
