@@ -54,10 +54,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _apply_view_visibility() -> void:
 	if _player == null: return
-	var body := _player.get_node_or_null("StickmanBody")
-	var head := _player.get_node_or_null("StickmanHead")
-	if body: body.visible = _tps_mode
-	if head: head.visible = _tps_mode
+	for name_ in ["StickmanBody", "StickmanHead", "StickmanArmL", "StickmanArmR", "StickmanLegL", "StickmanLegR"]:
+		var n: Node3D = _player.get_node_or_null(name_)
+		if n: n.visible = _tps_mode
 
 
 func _process(delta: float) -> void:

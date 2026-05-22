@@ -32,3 +32,13 @@ func cycle_paint() -> void:
 func cycle_block() -> void:
 	current_block_id = wrapi(current_block_id + 1, 1, BlockDB.block_count() + 1)
 	block_changed.emit(current_block_id)
+
+func set_paint(idx: int) -> void:
+	if idx < 0 or idx >= PAINT_PALETTE.size(): return
+	current_paint_index = idx
+	paint_color_changed.emit(current_paint_color())
+
+func set_block(id: int) -> void:
+	if id < 1 or id > BlockDB.block_count(): return
+	current_block_id = id
+	block_changed.emit(current_block_id)

@@ -9,6 +9,8 @@ signal slide_started
 signal slide_ended
 signal wall_jumped(normal: Vector3)
 signal speed_changed(speed: float)
+signal tagged(by_color: Color)
+signal respawned
 
 @export_group("Walk")
 @export var walk_speed := 6.0
@@ -47,6 +49,12 @@ signal speed_changed(speed: float)
 @export var bhop_gain := 0.6
 @export var bhop_max_speed := 14.0
 
+@export_group("Safety")
+@export var kill_floor_y := -30.0       # below this → respawn
+@export var spawn_position: Vector3 = Vector3(8.0, 30.0, 8.0)
+
+var tag_count := 0
+
 # -------- runtime state --------
 var _was_on_floor := false
 var _last_grounded_time := -10.0
@@ -69,9 +77,21 @@ func _ready() -> void:
 	floor_max_angle = deg_to_rad(50)
 	floor_snap_length = 0.35
 	_set_sliding_collision(false)
+	add_to_group("player")
 	if is_local():
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_install_synchronizer()
+
+
+func respawn() -> void:
+	velocity = Vector3.ZERO
+	global_position = spawn_position
+	respawned.emit()
+
+
+func register_tag(by_color: Color) -> void:
+	tag_count += 1
+	tagged.emit(by_color)
 
 
 func is_local() -> bool:
@@ -103,6 +123,12 @@ func _physics_process(delta: float) -> void:
 		# Remote players move via replicated transform; still let physics settle.
 		move_and_slide()
 		return
+
+	# Safety net: respawn if we fell out of the world.
+	if global_position.y < kill_floor_y:
+		respawn()
+		return
+
 	var now := Time.get_ticks_msec() / 1000.0
 
 	# --- buffer jump input ---

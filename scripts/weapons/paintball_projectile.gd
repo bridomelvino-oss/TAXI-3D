@@ -18,7 +18,7 @@ func _ready() -> void:
 	contact_monitor = true
 	max_contacts_reported = 2
 	collision_layer = 4   # projectile
-	collision_mask = 1    # world only
+	collision_mask = 1 | 2  # world + players
 	body_entered.connect(_on_body_entered)
 	gravity_scale = 0.45  # paintball arc
 
@@ -39,9 +39,29 @@ func _physics_process(_delta: float) -> void:
 		queue_free()
 
 
-func _on_body_entered(_body: Node) -> void:
-	_spawn_paint_splat()
+var shooter_id: int = 0
+
+func _on_body_entered(body: Node) -> void:
+	if body is PlayerController:
+		var p := body as PlayerController
+		# Don't tag yourself.
+		if p.get_multiplayer_authority() != shooter_id:
+			_spawn_player_splat(p)
+			p.register_tag(paint_color)
+	else:
+		_spawn_paint_splat()
 	queue_free()
+
+
+func _spawn_player_splat(p: PlayerController) -> void:
+	var decal := Decal.new()
+	decal.add_to_group("paint_decal")
+	p.add_child(decal)
+	decal.position = (global_position - p.global_position) + Vector3(0, 0.9, 0)
+	decal.size = Vector3(0.8, 1.6, 0.8)
+	decal.texture_albedo = _make_splat_texture()
+	decal.modulate = paint_color
+	decal.albedo_mix = 1.0
 
 
 func _spawn_paint_splat() -> void:

@@ -42,12 +42,15 @@ func _rpc_client_scene_ready() -> void:
 
 # Runs on every peer (server + clients) thanks to MultiplayerSpawner.
 func _spawn_player_instance(peer_id: int) -> Node:
+	if _players and _players.has_node(str(peer_id)):
+		return null
 	var p: PlayerController = PLAYER_SCENE.instantiate()
 	p.name = str(peer_id)
 	p.set_multiplayer_authority(peer_id)
 
 	var spawn_pos := _pick_spawn_position()
 	p.position = spawn_pos
+	p.spawn_position = spawn_pos
 
 	# Defer wiring until the node is in the tree so $CameraPivot etc. resolve.
 	p.ready.connect(func(): _wire_local_player(p), CONNECT_ONE_SHOT)

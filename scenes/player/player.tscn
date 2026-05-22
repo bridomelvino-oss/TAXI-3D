@@ -21,8 +21,8 @@ albedo_color = Color(0.15, 0.15, 0.18, 1)
 shading_mode = 1
 
 [sub_resource type="CapsuleMesh" id="StickmanBodyMesh"]
-radius = 0.18
-height = 1.7
+radius = 0.12
+height = 0.8
 radial_segments = 8
 rings = 4
 
@@ -32,8 +32,14 @@ height = 0.44
 radial_segments = 10
 rings = 6
 
+[sub_resource type="CapsuleMesh" id="StickmanLimbMesh"]
+radius = 0.07
+height = 0.7
+radial_segments = 6
+rings = 3
+
 [sub_resource type="StandardMaterial3D" id="StickmanMat"]
-albedo_color = Color(0.1, 0.1, 0.12, 1)
+albedo_color = Color(0.08, 0.09, 0.12, 1)
 shading_mode = 1
 
 [node name="Player" type="CharacterBody3D"]
@@ -56,14 +62,38 @@ target_position = Vector3(0, 0.95, 0)
 collision_mask = 1
 
 [node name="StickmanBody" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
 mesh = SubResource("StickmanBodyMesh")
 material_override = SubResource("StickmanMat")
 visible = false
 
 [node name="StickmanHead" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.85, 0)
 mesh = SubResource("StickmanHeadMesh")
+material_override = SubResource("StickmanMat")
+visible = false
+
+[node name="StickmanArmL" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.25, 1.15, 0)
+mesh = SubResource("StickmanLimbMesh")
+material_override = SubResource("StickmanMat")
+visible = false
+
+[node name="StickmanArmR" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 1.15, 0)
+mesh = SubResource("StickmanLimbMesh")
+material_override = SubResource("StickmanMat")
+visible = false
+
+[node name="StickmanLegL" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.12, 0.4, 0)
+mesh = SubResource("StickmanLimbMesh")
+material_override = SubResource("StickmanMat")
+visible = false
+
+[node name="StickmanLegR" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.4, 0)
+mesh = SubResource("StickmanLimbMesh")
 material_override = SubResource("StickmanMat")
 visible = false
 

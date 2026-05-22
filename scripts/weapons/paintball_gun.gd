@@ -38,6 +38,12 @@ func _process(_delta: float) -> void:
 		GameSettings.cycle_block()
 	if Input.is_action_just_pressed("cycle_paint"):
 		GameSettings.cycle_paint()
+	for i in 7:
+		if Input.is_action_just_pressed("hotbar_%d" % (i + 1)):
+			GameSettings.set_block(i + 1)
+	for i in 6:
+		if Input.is_action_just_pressed("paint_%d" % (i + 1)):
+			GameSettings.set_paint(i)
 
 
 func _try_shoot() -> void:
@@ -53,6 +59,7 @@ func _try_shoot() -> void:
 	var proj: PaintballProjectile = projectile_scene.instantiate()
 	get_tree().current_scene.add_child(proj)
 	proj.paint_color = GameSettings.current_paint_color()
+	proj.shooter_id = _owner_player.get_multiplayer_authority() if _owner_player else 0
 	proj.global_position = _muzzle.global_position
 
 	var dir := -_camera.global_transform.basis.z
