@@ -29,16 +29,22 @@ export class InputManager {
     this.mouseDeltaX = 0;
     this.mouseDeltaY = 0;
 
+    // Clic gauche : "front" de declenchement (un tir par appui, pas par frame),
+    // consomme puis remis a zero par le code appelant (meme pattern que le delta souris).
+    this.firePressed = false;
+
     this.isPointerLocked = false;
 
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onKeyUp = this._onKeyUp.bind(this);
     this._onMouseMove = this._onMouseMove.bind(this);
+    this._onMouseDown = this._onMouseDown.bind(this);
     this._onPointerLockChange = this._onPointerLockChange.bind(this);
 
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
     document.addEventListener('mousemove', this._onMouseMove);
+    document.addEventListener('mousedown', this._onMouseDown);
     document.addEventListener('pointerlockchange', this._onPointerLockChange);
   }
 
@@ -62,6 +68,11 @@ export class InputManager {
     this.mouseDeltaY += event.movementY;
   }
 
+  _onMouseDown(event) {
+    if (!this.isPointerLocked) return;
+    if (event.button === 0) this.firePressed = true;
+  }
+
   _onPointerLockChange() {
     this.isPointerLocked = document.pointerLockElement === this.domElement;
   }
@@ -70,5 +81,10 @@ export class InputManager {
   resetMouseDelta() {
     this.mouseDeltaX = 0;
     this.mouseDeltaY = 0;
+  }
+
+  // A appeler une fois par frame apres avoir consomme la demande de tir.
+  resetFirePressed() {
+    this.firePressed = false;
   }
 }

@@ -16,7 +16,20 @@ const POSITION_SMOOTH_TIME = 0.07; // secondes, lissage court (anti-jitter, pas 
 // latence perceptible a la visee.
 const MOUSE_SMOOTH_TIME = 0.035;
 
+// Recul visuel au tir : un kick temporaire qui s'additionne au pitch pilote
+// par la souris puis se resorbe, sans jamais alterer `this.pitch` (donc sans
+// desynchroniser la visee du joueur de l'affichage a long terme).
+const RECOIL_RECOVERY_SPEED = 10;
+
+// Decalage "par-dessus l'epaule" : sans lui, la camera vise pile le centre du
+// personnage, qui se retrouve alors constamment dans son propre viseur (les
+// tirs/decals se retrouvent caches derriere son propre dos). On decale donc
+// la camera ET le point vise d'un meme vecteur lateral, ce qui deplace le
+// personnage sur le cote de l'ecran sans changer l'angle de visee reel.
+const SHOULDER_OFFSET = 0.55;
+
 const _pivot = new THREE.Vector3();
+const _right = new THREE.Vector3();
 const _desiredOffset = new THREE.Vector3();
 const _desiredCamPos = new THREE.Vector3();
 const _rayDir = new THREE.Vector3();
@@ -41,6 +54,14 @@ export class ThirdPersonCamera {
 
     // Position actuelle lissee de la camera (init au premier update)
     this._currentPos = null;
+
+    // Kick de recul (tir), s'ajoute au pitch pour le rendu uniquement
+    this._recoilPitch = 0;
+  }
+
+  /** Ajoute un kick de recul temporaire (positif = camera part vers le haut). */
+  kick(amount) {
+    this._recoilPitch += amount;
   }
 
   /**
@@ -64,13 +85,18 @@ export class ThirdPersonCamera {
    * @param {number} dt
    */
   update(targetPosition, obstacleMeshes, dt) {
-    _pivot.set(targetPosition.x, targetPosition.y + PIVOT_HEIGHT, targetPosition.z);
+    this._recoilPitch *= Math.exp(-RECOIL_RECOVERY_SPEED * dt);
+    const renderPitch = THREE.MathUtils.clamp(this.pitch + this._recoilPitch, MIN_PITCH - 0.3, MAX_PITCH + 0.1);
 
-    // Offset spherique derriere le personnage, selon yaw/pitch
-    const horizontalDist = Math.cos(this.pitch) * DISTANCE;
+    _right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    _pivot.set(targetPosition.x, targetPosition.y + PIVOT_HEIGHT, targetPosition.z);
+    _pivot.addScaledVector(_right, SHOULDER_OFFSET);
+
+    // Offset spherique derriere le personnage, selon yaw/pitch (+ recul du tir)
+    const horizontalDist = Math.cos(renderPitch) * DISTANCE;
     _desiredOffset.set(
       -Math.sin(this.yaw) * horizontalDist,
-      Math.sin(-this.pitch) * DISTANCE,
+      Math.sin(-renderPitch) * DISTANCE,
       -Math.cos(this.yaw) * horizontalDist
     );
     _desiredCamPos.copy(_pivot).add(_desiredOffset);

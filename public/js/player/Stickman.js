@@ -83,6 +83,12 @@ export class Stickman {
     this.rightArm.pivot.position.set(-0.34, 0.85, 0);
     this.upperBody.add(this.rightArm.pivot);
 
+    // Point d'attache de l'arme : au niveau de la main droite, suit donc le
+    // pivot du bras (balancement de marche/course, recul au tir).
+    this.weaponMount = new THREE.Group();
+    this.weaponMount.position.set(0, -ARM_LENGTH, 0.08);
+    this.rightArm.pivot.add(this.weaponMount);
+
     // --- Jambes : pivot a la hanche (hors du groupe "upperBody", non affectees par le lean) --
     this.leftLeg = this._createLimb(0.1, LEG_LENGTH, pantsMaterial, bootMaterial);
     this.leftLeg.pivot.position.set(0.16, 0, 0);
