@@ -8,10 +8,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
 
 const app = express();
+// Three.js est copie en asset statique dans public/vendor/three (pas de CDN
+// externe) : le client fonctionne a l'identique en local et une fois deploye
+// sur un hebergement statique (GitHub Pages, etc.).
 app.use(express.static(path.join(__dirname, '..', 'public')));
-// Three.js sert en dependance npm locale (pas de CDN externe) : plus fiable
-// pour jouer en LAN/reseau restreint entre potes.
-app.use('/vendor/three', express.static(path.join(__dirname, '..', 'node_modules', 'three', 'build')));
 
 app.listen(PORT, () => {
   console.log(`Client servi sur http://localhost:${PORT}`);
