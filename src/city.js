@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { COLORS } from "./config.js";
 import { getLayout } from "./layout.js";
+import { createSoftShadowTexture } from "./textures.js";
 
 // ---- shared geometries / materials (reused across instances for perf) ----
 const geo = {
@@ -8,49 +9,66 @@ const geo = {
   cylinder: new THREE.CylinderGeometry(1, 1, 1, 10),
   cone: new THREE.ConeGeometry(1, 1, 8),
   sphere: new THREE.SphereGeometry(1, 10, 8),
+  shadowBlob: new THREE.PlaneGeometry(1, 1),
 };
 
+function stdMat(color, roughness = 0.85, metalness = 0, extra = {}) {
+  return new THREE.MeshStandardMaterial({ color, roughness, metalness, ...extra });
+}
+
 const mat = {
-  colonial: new THREE.MeshLambertMaterial({ color: COLORS.colonialWhite }),
-  laterite: new THREE.MeshLambertMaterial({ color: COLORS.laterite }),
-  tin: new THREE.MeshLambertMaterial({ color: COLORS.tin }),
-  wood: new THREE.MeshLambertMaterial({ color: COLORS.wood }),
-  glass: new THREE.MeshLambertMaterial({
-    color: COLORS.glass,
-    transparent: true,
-    opacity: 0.55,
-  }),
-  vegDark: new THREE.MeshLambertMaterial({ color: COLORS.vegDark }),
-  vegLight: new THREE.MeshLambertMaterial({ color: COLORS.vegLight }),
-  trunk: new THREE.MeshLambertMaterial({ color: 0x6b4a2f }),
-  asphalt: new THREE.MeshLambertMaterial({ color: COLORS.asphalt }),
-  tarmac: new THREE.MeshLambertMaterial({ color: 0x323238 }),
+  colonial: stdMat(COLORS.colonialWhite, 0.75),
+  laterite: stdMat(COLORS.laterite, 0.8),
+  tin: stdMat(COLORS.tin, 0.55, 0.3),
+  wood: stdMat(COLORS.wood, 0.9),
+  glass: stdMat(COLORS.glass, 0.15, 0.2, { transparent: true, opacity: 0.55 }),
+  vegDark: stdMat(COLORS.vegDark, 0.85),
+  vegLight: stdMat(COLORS.vegLight, 0.85),
+  palmLeaf: stdMat(0x5c9a4c, 0.8),
+  trunk: stdMat(0x6b4a2f, 0.9),
+  asphalt: stdMat(COLORS.asphalt, 0.95),
+  tarmac: stdMat(0x323238, 0.9),
   roadLine: new THREE.MeshBasicMaterial({ color: COLORS.roadLine }),
-  sidewalk: new THREE.MeshLambertMaterial({ color: COLORS.sidewalk }),
-  sand: new THREE.MeshLambertMaterial({ color: 0xe8d8a8 }),
-  water: new THREE.MeshLambertMaterial({ color: COLORS.water, transparent: true, opacity: 0.92 }),
-  bay: new THREE.MeshLambertMaterial({
-    color: COLORS.water,
-    transparent: true,
-    opacity: 0.92,
-    side: THREE.DoubleSide,
-  }),
-  marketRed: new THREE.MeshLambertMaterial({ color: COLORS.marketRed }),
-  marketBlue: new THREE.MeshLambertMaterial({ color: COLORS.marketBlue }),
-  marketGreen: new THREE.MeshLambertMaterial({ color: COLORS.marketGreen }),
-  marketOrange: new THREE.MeshLambertMaterial({ color: COLORS.marketOrange }),
-  hullBlue: new THREE.MeshLambertMaterial({ color: 0x2f5c73 }),
-  hullRed: new THREE.MeshLambertMaterial({ color: 0x8a3324 }),
-  lampPole: new THREE.MeshLambertMaterial({ color: 0x2b2b2b }),
+  sidewalk: stdMat(COLORS.sidewalk, 0.9),
+  sand: stdMat(0xe8d8a8, 0.95),
+  water: stdMat(COLORS.water, 0.25, 0.15, { transparent: true, opacity: 0.92 }),
+  bay: stdMat(COLORS.water, 0.2, 0.15, { transparent: true, opacity: 0.92, side: THREE.DoubleSide }),
+  marketRed: stdMat(COLORS.marketRed, 0.7),
+  marketBlue: stdMat(COLORS.marketBlue, 0.7),
+  marketGreen: stdMat(COLORS.marketGreen, 0.7),
+  marketOrange: stdMat(COLORS.marketOrange, 0.7),
+  hullBlue: stdMat(0x2f5c73, 0.6, 0.2),
+  hullRed: stdMat(0x8a3324, 0.6, 0.2),
+  lampPole: stdMat(0x2b2b2b, 0.5, 0.4),
   lampGlow: new THREE.MeshBasicMaterial({ color: 0xfff2b0 }),
-  umbrellaRed: new THREE.MeshLambertMaterial({ color: 0xc0392b }),
-  umbrellaBlue: new THREE.MeshLambertMaterial({ color: 0x2d6a8f }),
-  carBody: [
-    new THREE.MeshLambertMaterial({ color: 0x7a3b3b }),
-    new THREE.MeshLambertMaterial({ color: 0x3b5a7a }),
-    new THREE.MeshLambertMaterial({ color: 0x3b7a4c }),
-  ],
+  umbrellaRed: stdMat(0xc0392b, 0.7),
+  umbrellaBlue: stdMat(0x2d6a8f, 0.7),
+  wheel: stdMat(0x1c1c1c, 0.6, 0.1),
+  shadowBlob: new THREE.MeshBasicMaterial({
+    map: createSoftShadowTexture(),
+    transparent: true,
+    depthWrite: false,
+  }),
+  carBody: [stdMat(0x7a3b3b, 0.45, 0.15), stdMat(0x3b5a7a, 0.45, 0.15), stdMat(0x3b7a4c, 0.45, 0.15)],
 };
+
+/** Cheap fake-AO / contact-shadow decal, flat on the ground under a prop. */
+function groundShadow(x, z, radius) {
+  const m = new THREE.Mesh(geo.shadowBlob, mat.shadowBlob);
+  m.scale.set(radius * 2, radius * 2, 1);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, 0.015, z);
+  return m;
+}
+
+/** Slightly jitters a base color's lightness so repeated buildings don't look cloned. */
+function tintedStdMat(baseColor, roughness, jitter = 0.06) {
+  const c = new THREE.Color(baseColor);
+  const hsl = { h: 0, s: 0, l: 0 };
+  c.getHSL(hsl);
+  c.setHSL(hsl.h, hsl.s, THREE.MathUtils.clamp(hsl.l + (Math.random() * 2 - 1) * jitter, 0.05, 0.95));
+  return stdMat(c, roughness);
+}
 
 function box(w, h, d, material, x, y, z) {
   const m = new THREE.Mesh(geo.box, material);
@@ -130,6 +148,27 @@ function baobab(x, z, scale = 1) {
   canopy2.position.set(0.6 * scale, trunkH + 1.6 * scale, 0.3 * scale);
   canopy2.castShadow = true;
   g.add(canopy2);
+  g.add(groundShadow(0, 0, 2.4 * scale));
+  g.position.set(x, 0, z);
+  return g;
+}
+
+function palmTree(x, z, scale = 1) {
+  const g = new THREE.Group();
+  const trunkH = 4.2 * scale;
+  const trunk = cylinder(0.22 * scale, trunkH, mat.trunk, 0, trunkH / 2, 0);
+  trunk.rotation.z = 0.12;
+  g.add(trunk);
+  const frondCount = 6;
+  for (let i = 0; i < frondCount; i++) {
+    const a = (i / frondCount) * Math.PI * 2;
+    const frond = box(0.35 * scale, 0.06 * scale, 2.2 * scale, mat.palmLeaf, 0, trunkH + 0.1 * scale, 1.1 * scale);
+    frond.rotation.y = a;
+    frond.rotation.x = -0.5;
+    frond.position.set(Math.sin(a) * 0.5 * scale, trunkH + 0.1 * scale, Math.cos(a) * 0.5 * scale);
+    g.add(frond);
+  }
+  g.add(groundShadow(0, 0, 1.1 * scale));
   g.position.set(x, 0, z);
   return g;
 }
@@ -155,11 +194,12 @@ function parkedCar(x, z, rotY, colorIdx) {
   g.add(cabin);
   for (const sx of [-0.9, 0.9]) {
     for (const sz of [-1.3, 1.3]) {
-      const wheel = cylinder(0.35, 0.3, new THREE.MeshLambertMaterial({ color: 0x1c1c1c }), sx, 0.35, sz);
+      const wheel = cylinder(0.35, 0.3, mat.wheel, sx, 0.35, sz);
       wheel.rotation.z = Math.PI / 2;
       g.add(wheel);
     }
   }
+  g.add(groundShadow(0, 0, 2.6));
   g.position.set(x, 0, z);
   g.rotation.y = rotY;
   return g;
@@ -173,6 +213,7 @@ function boat(x, z, hullMat, scale = 1) {
   g.add(cabin);
   const mast = cylinder(0.05 * scale, 3 * scale, mat.trunk, 0, 2.4 * scale, 0.6 * scale);
   g.add(mast);
+  g.add(groundShadow(0, 0, 2.6 * scale));
   g.position.set(x, 0, z);
   g.rotation.y = Math.random() * 0.4 - 0.2;
   return g;
@@ -186,6 +227,7 @@ function beachUmbrella(x, z, colorMat) {
   canopy.position.set(0, 2.3, 0);
   canopy.castShadow = true;
   g.add(canopy);
+  g.add(groundShadow(0, 0, 1.3));
   g.position.set(x, 0, z);
   return g;
 }
@@ -203,10 +245,11 @@ function oldTownBlock(cx, cz, w, d, colliders) {
   for (let i = 0; i < cols; i++) {
     const dx = -w / 2 + bw / 2 + i * (bw + 1.4);
     const h = 3.2 + Math.random() * 2;
-    const wallMat = i % 2 === 0 ? mat.colonial : mat.laterite;
+    const wallMat = tintedStdMat(i % 2 === 0 ? COLORS.colonialWhite : COLORS.laterite, 0.8);
     g.add(box(bw, h, bd, wallMat, dx, h / 2, 0));
     g.add(box(bw + 0.3, 0.3, bd + 0.3, mat.laterite, dx, h + 0.15, 0));
     g.add(box(bw * 0.55, 0.6, 0.06, mat.glass, dx, h * 0.62, bd / 2 + 0.03));
+    g.add(groundShadow(dx, 0, Math.max(bw, bd) * 0.6));
     colliders.push({
       minX: cx + dx - bw / 2,
       maxX: cx + dx + bw / 2,
@@ -237,6 +280,7 @@ function adminBuilding(cx, cz, colliders) {
   roofCone.scale.set(1.9, 1.4, 1.9);
   roofCone.position.set(0, h + 2.6, 2);
   g.add(roofCone);
+  g.add(groundShadow(0, 0, 9));
 
   g.position.set(cx, 0, cz);
   colliders.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
@@ -257,6 +301,7 @@ function marketStall(x, z, rotY, colorMat) {
   const roof = box(4.6, 0.25, 4.6, colorMat, 0, 2.5, 0);
   roof.rotation.y = Math.PI / 8;
   g.add(roof);
+  g.add(groundShadow(0, 0, 3.2));
   g.position.set(x, 0, z);
   g.rotation.y = rotY;
   return g;
@@ -285,13 +330,14 @@ function residentialHouse(x, z, rotY) {
   const w = 4 + Math.random() * 1.5;
   const d = 3.5 + Math.random() * 1.5;
   const h = 2.4 + Math.random() * 0.6;
-  const wallMat = Math.random() > 0.5 ? mat.wood : mat.laterite;
+  const wallMat = tintedStdMat(Math.random() > 0.5 ? COLORS.wood : COLORS.laterite, 0.9);
   g.add(box(w, h, d, wallMat, 0, h / 2, 0));
   const roof = box(w + 0.6, 0.3, d + 0.6, mat.tin, 0, h + 0.3, 0);
   g.add(roof);
   const roofCap = box(w * 0.6, 0.7, 0.4, mat.tin, 0, h + 0.7, 0);
   roofCap.rotation.x = Math.PI / 2;
   g.add(roofCap);
+  g.add(groundShadow(0, 0, Math.max(w, d) * 0.65));
   g.position.set(x, 0, z);
   g.rotation.y = rotY;
   return { group: g, w, d };
@@ -334,6 +380,7 @@ function hotelBuilding(cx, cz, colliders) {
   pool.rotation.x = -Math.PI / 2;
   pool.position.set(0, 0.03, d / 2 + 4.2);
   g.add(pool);
+  g.add(groundShadow(0, 0, 6));
   g.position.set(cx, 0, cz);
   colliders.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
   return g;
@@ -360,6 +407,7 @@ function terminalBuilding(cx, cz, colliders) {
   g.add(box(w + 0.5, 0.3, d + 0.5, mat.laterite, 0, h + 0.15, 0));
   g.add(cylinder(1.1, 5.5, mat.colonial, w / 2 - 1.5, 2.75, 0));
   g.add(box(1.6, 1.2, 1.6, mat.glass, w / 2 - 1.5, 5.6, 0));
+  g.add(groundShadow(0, 0, 7));
   g.position.set(cx, 0, cz);
   colliders.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
   return g;
@@ -440,6 +488,7 @@ function buildVilleBasse(zone, group, colliders) {
   const edgeX = zone.center.x + zone.halfW + 3.5;
   group.add(boat(edgeX, zone.center.z - 6, mat.hullBlue, 0.9));
   group.add(boat(edgeX, zone.center.z + 6, mat.hullRed, 0.8));
+  group.add(palmTree(edgeX - 1.5, zone.center.z, 1.1));
   return zoneCurbPoints(zone, ["n", "s", "w"]);
 }
 
@@ -469,6 +518,8 @@ function buildBordDeMer(zone, group, colliders) {
   group.add(box(4, 0.05, zone.halfD * 1.8, mat.sand, edgeX, 0.025, zone.center.z));
   group.add(beachUmbrella(edgeX, zone.center.z - 5, mat.umbrellaRed));
   group.add(beachUmbrella(edgeX, zone.center.z + 2, mat.umbrellaBlue));
+  group.add(palmTree(edgeX + 1.5, zone.center.z - 8, 1));
+  group.add(palmTree(edgeX + 1.2, zone.center.z + 6.5, 0.85));
   return zoneCurbPoints(zone, ["n", "s", "w"]);
 }
 
@@ -572,4 +623,18 @@ export function buildCity(scene) {
     plazaCenter,
     mapRadius: layout.mapRadius,
   };
+}
+
+let waterTime = 0;
+const BASE_WATER_OPACITY = 0.92;
+
+/** Gentle shimmer for the bay/pool water — call once per frame from the render loop. */
+export function updateCityAnimations(dt) {
+  waterTime += dt;
+  const shimmer = BASE_WATER_OPACITY - 0.05 + Math.sin(waterTime * 0.6) * 0.04;
+  mat.water.opacity = shimmer;
+  mat.bay.opacity = shimmer;
+  const tint = 0.5 + Math.sin(waterTime * 0.6) * 0.5;
+  mat.water.roughness = 0.2 + tint * 0.1;
+  mat.bay.roughness = mat.water.roughness;
 }

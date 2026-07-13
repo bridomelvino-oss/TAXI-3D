@@ -4,10 +4,16 @@ import { COLORS, PHYSICS } from "./config.js";
 function buildTaxiMesh() {
   const g = new THREE.Group();
 
-  const bodyMat = new THREE.MeshLambertMaterial({ color: COLORS.taxiYellow });
-  const darkMat = new THREE.MeshLambertMaterial({ color: COLORS.taxiYellowDark });
-  const glassMat = new THREE.MeshLambertMaterial({ color: COLORS.glass, transparent: true, opacity: 0.6 });
-  const blackMat = new THREE.MeshLambertMaterial({ color: 0x1c1c1c });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: COLORS.taxiYellow, roughness: 0.35, metalness: 0.25 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: COLORS.taxiYellowDark, roughness: 0.4, metalness: 0.2 });
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: COLORS.glass,
+    transparent: true,
+    opacity: 0.6,
+    roughness: 0.1,
+    metalness: 0.1,
+  });
+  const blackMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.5, metalness: 0.3 });
   const checkerMat = new THREE.MeshBasicMaterial({ color: 0x1c1c1c });
 
   // main body

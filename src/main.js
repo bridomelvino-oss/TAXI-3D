@@ -1,20 +1,22 @@
 import * as THREE from "three";
 import { COLORS } from "./config.js";
-import { buildCity } from "./city.js";
+import { buildCity, updateCityAnimations } from "./city.js";
 import { Taxi } from "./taxi.js";
 import { InputState } from "./input.js";
 import { ThirdPersonCamera } from "./camera.js";
 import { GameManager } from "./game.js";
 import { Hud } from "./hud.js";
+import { createSkyGradientTexture } from "./textures.js";
 
 const canvas = document.getElementById("game-canvas");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(COLORS.sky);
+scene.background = createSkyGradientTexture();
 
 // ---- lighting ----
 const hemi = new THREE.HemisphereLight(COLORS.sky, COLORS.laterite, 0.95);
@@ -39,7 +41,7 @@ scene.add(sun.target);
 
 // ---- world ----
 const city = buildCity(scene);
-scene.fog = new THREE.Fog(COLORS.sky, city.mapRadius * 0.8, city.mapRadius * 2.4);
+scene.fog = new THREE.Fog(0xbfe0e8, city.mapRadius * 0.8, city.mapRadius * 2.4);
 
 const taxi = new Taxi(scene);
 // Spawn just east of the roundabout, facing back toward it (west).
@@ -101,6 +103,7 @@ function animate() {
   }
 
   thirdPersonCamera.update(dt, taxi);
+  updateCityAnimations(dt);
   sun.position.set(taxi.position.x + 60, 80, taxi.position.z + 40);
   sun.target.position.set(taxi.position.x, 0, taxi.position.z);
 
