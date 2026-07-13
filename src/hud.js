@@ -1,7 +1,6 @@
-import { HALF_SPAN } from "./config.js";
-
 export class Hud {
-  constructor() {
+  constructor(mapRadius = 90) {
+    this.mapSpan = mapRadius * 1.8;
     this.moneyValue = document.getElementById("money-value");
     this.fareBanner = document.getElementById("fare-banner");
     this.fareText = document.getElementById("fare-text");
@@ -60,8 +59,7 @@ export class Hud {
     ctx.fillStyle = "rgba(15,30,40,0.35)";
     ctx.fillRect(0, 0, size, size);
 
-    const span = HALF_SPAN * 2.3;
-    const scale = size / span;
+    const scale = size / this.mapSpan;
     const toMap = (x, z) => ({
       mx: size / 2 + (x - carPos.x) * scale,
       my: size / 2 + (z - carPos.z) * scale,
@@ -70,8 +68,9 @@ export class Hud {
     // grid
     ctx.strokeStyle = "rgba(245,240,230,0.15)";
     ctx.lineWidth = 1;
+    const gridStep = 20;
     for (let i = -4; i <= 4; i++) {
-      const gx = size / 2 + i * 22 * scale - ((carPos.x * scale) % (22 * scale));
+      const gx = size / 2 + i * gridStep * scale - ((carPos.x * scale) % (gridStep * scale));
       ctx.beginPath();
       ctx.moveTo(gx, 0);
       ctx.lineTo(gx, size);

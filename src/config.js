@@ -20,15 +20,6 @@ export const COLORS = {
   tireBlack: 0x1c1c1c,
 };
 
-// City grid: 4x4 blocks
-export const BLOCK_SIZE = 22; // building footprint side
-export const ROAD_WIDTH = 10;
-export const CELL = BLOCK_SIZE + ROAD_WIDTH; // distance between block centers
-export const GRID_N = 4;
-
-// City spans from -HALF to +HALF on both axes (approx, plus a margin for waterfront)
-export const HALF_SPAN = (GRID_N * CELL) / 2;
-
 export const PHYSICS = {
   maxSpeed: 25, // units/sec
   reverseMaxSpeed: 10,

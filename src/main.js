@@ -15,7 +15,6 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(COLORS.sky);
-scene.fog = new THREE.Fog(COLORS.sky, 90, 240);
 
 // ---- lighting ----
 const hemi = new THREE.HemisphereLight(COLORS.sky, COLORS.laterite, 0.95);
@@ -40,15 +39,17 @@ scene.add(sun.target);
 
 // ---- world ----
 const city = buildCity(scene);
+scene.fog = new THREE.Fog(COLORS.sky, city.mapRadius * 0.8, city.mapRadius * 2.4);
 
 const taxi = new Taxi(scene);
-taxi.setSpawn(city.plazaCenter.x + 9, city.plazaCenter.z, Math.PI);
+// Spawn just east of the roundabout, facing back toward it (west).
+taxi.setSpawn(city.plazaCenter.x + 9, city.plazaCenter.z, -Math.PI / 2);
 
 const thirdPersonCamera = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
 thirdPersonCamera.snapTo(taxi);
 
 const input = new InputState();
-const hud = new Hud();
+const hud = new Hud(city.mapRadius);
 
 const game = new GameManager(scene, city.spawnZones, city.plazaCenter, (evt) => {
   if (evt.type === "newObjective") {
@@ -91,7 +92,7 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
 
   if (started) {
-    taxi.update(dt, input, city.colliders, city.bounds);
+    taxi.update(dt, input, city.colliders, city.bounds, city.polygons);
     game.update(dt, taxi.position);
 
     const objective = game.getObjective();

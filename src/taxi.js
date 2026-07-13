@@ -117,7 +117,7 @@ export class Taxi {
     this._syncMesh();
   }
 
-  update(dt, input, colliders, bounds) {
+  update(dt, input, colliders, bounds, polygons) {
     const p = PHYSICS;
 
     // ---- acceleration / braking / friction ----
@@ -158,7 +158,7 @@ export class Taxi {
     const nextX = this.position.x + dx;
     const nextZ = this.position.z + dz;
 
-    const resolved = this._resolveCollisions(nextX, nextZ, colliders, bounds);
+    const resolved = this._resolveCollisions(nextX, nextZ, colliders, bounds, polygons);
     this.position.x = resolved.x;
     this.position.z = resolved.z;
     if (resolved.hit) this.speed *= 0.35;
@@ -170,7 +170,7 @@ export class Taxi {
     this._syncMesh();
   }
 
-  _resolveCollisions(x, z, colliders, bounds) {
+  _resolveCollisions(x, z, colliders, bounds, polygons) {
     let hit = false;
     let rx = x;
     let rz = z;
@@ -210,6 +210,17 @@ export class Taxi {
       }
     }
 
+    if (polygons) {
+      for (const poly of polygons) {
+        if (pointInPolygon(rx, rz, poly)) {
+          const nearest = closestPointOnPolygon(rx, rz, poly);
+          rx = nearest.x;
+          rz = nearest.z;
+          hit = true;
+        }
+      }
+    }
+
     return { x: rx, z: rz, hit };
   }
 
@@ -217,4 +228,39 @@ export class Taxi {
     this.mesh.position.set(this.position.x, 0, this.position.z);
     this.mesh.rotation.y = this.heading;
   }
+}
+
+function pointInPolygon(x, z, points) {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const xi = points[i].x,
+      zi = points[i].z,
+      xj = points[j].x,
+      zj = points[j].z;
+    const intersect = zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function closestPointOnPolygon(x, z, points) {
+  let best = null;
+  let bestDistSq = Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    const abx = b.x - a.x;
+    const abz = b.z - a.z;
+    const lenSq = abx * abx + abz * abz || 1;
+    let t = ((x - a.x) * abx + (z - a.z) * abz) / lenSq;
+    t = THREE.MathUtils.clamp(t, 0, 1);
+    const px = a.x + abx * t;
+    const pz = a.z + abz * t;
+    const distSq = (x - px) ** 2 + (z - pz) ** 2;
+    if (distSq < bestDistSq) {
+      bestDistSq = distSq;
+      best = { x: px, z: pz };
+    }
+  }
+  return best;
 }

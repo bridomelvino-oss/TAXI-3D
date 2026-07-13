@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { COLORS, BLOCK_SIZE, ROAD_WIDTH, CELL, GRID_N, HALF_SPAN } from "./config.js";
+import { COLORS } from "./config.js";
+import { getLayout } from "./layout.js";
 
 // ---- shared geometries / materials (reused across instances for perf) ----
 const geo = {
@@ -23,9 +24,17 @@ const mat = {
   vegLight: new THREE.MeshLambertMaterial({ color: COLORS.vegLight }),
   trunk: new THREE.MeshLambertMaterial({ color: 0x6b4a2f }),
   asphalt: new THREE.MeshLambertMaterial({ color: COLORS.asphalt }),
+  tarmac: new THREE.MeshLambertMaterial({ color: 0x323238 }),
   roadLine: new THREE.MeshBasicMaterial({ color: COLORS.roadLine }),
   sidewalk: new THREE.MeshLambertMaterial({ color: COLORS.sidewalk }),
+  sand: new THREE.MeshLambertMaterial({ color: 0xe8d8a8 }),
   water: new THREE.MeshLambertMaterial({ color: COLORS.water, transparent: true, opacity: 0.92 }),
+  bay: new THREE.MeshLambertMaterial({
+    color: COLORS.water,
+    transparent: true,
+    opacity: 0.92,
+    side: THREE.DoubleSide,
+  }),
   marketRed: new THREE.MeshLambertMaterial({ color: COLORS.marketRed }),
   marketBlue: new THREE.MeshLambertMaterial({ color: COLORS.marketBlue }),
   marketGreen: new THREE.MeshLambertMaterial({ color: COLORS.marketGreen }),
@@ -34,6 +43,8 @@ const mat = {
   hullRed: new THREE.MeshLambertMaterial({ color: 0x8a3324 }),
   lampPole: new THREE.MeshLambertMaterial({ color: 0x2b2b2b }),
   lampGlow: new THREE.MeshBasicMaterial({ color: 0xfff2b0 }),
+  umbrellaRed: new THREE.MeshLambertMaterial({ color: 0xc0392b }),
+  umbrellaBlue: new THREE.MeshLambertMaterial({ color: 0x2d6a8f }),
   carBody: [
     new THREE.MeshLambertMaterial({ color: 0x7a3b3b }),
     new THREE.MeshLambertMaterial({ color: 0x3b5a7a }),
@@ -50,7 +61,7 @@ function box(w, h, d, material, x, y, z) {
   return m;
 }
 
-function cylinder(r, h, material, x, y, z, radialSegments) {
+function cylinder(r, h, material, x, y, z) {
   const m = new THREE.Mesh(geo.cylinder, material);
   m.scale.set(r, h, r);
   m.position.set(x, y, z);
@@ -59,25 +70,49 @@ function cylinder(r, h, material, x, y, z, radialSegments) {
   return m;
 }
 
-function blockCenter(i, j) {
-  const offset = (GRID_N - 1) / 2;
-  return {
-    x: (i - offset) * CELL,
-    z: (j - offset) * CELL,
-  };
+/** Splits a zone rect into a small internal grid of sub-block centers (local, relative to zone center). */
+function subBlocks(zone, cols, rows, gap = 5) {
+  const totalW = zone.halfW * 2;
+  const totalD = zone.halfD * 2;
+  const cellW = (totalW - gap * (cols - 1)) / cols;
+  const cellD = (totalD - gap * (rows - 1)) / rows;
+  const out = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      out.push({
+        x: zone.center.x - totalW / 2 + cellW / 2 + c * (cellW + gap),
+        z: zone.center.z - totalD / 2 + cellD / 2 + r * (cellD + gap),
+        w: cellW,
+        d: cellD,
+      });
+    }
+  }
+  return out;
 }
 
-/** Curb points around a block, safely on the road/sidewalk (not inside building footprints). */
-function curbPoints(cx, cz, sides = ["n", "s", "e", "w"]) {
-  const d = BLOCK_SIZE / 2 + 2.2;
+function zoneCurbPoints(zone, sides = ["n", "s", "e", "w"], margin = 2.5) {
+  const { x: cx, z: cz } = zone.center;
   const map = {
-    n: { x: cx, z: cz - d },
-    s: { x: cx, z: cz + d },
-    e: { x: cx + d, z: cz },
-    w: { x: cx - d, z: cz },
+    n: { x: cx, z: cz - zone.halfD - margin },
+    s: { x: cx, z: cz + zone.halfD + margin },
+    e: { x: cx + zone.halfW + margin, z: cz },
+    w: { x: cx - zone.halfW - margin, z: cz },
   };
   return sides.map((s) => map[s]);
 }
+
+function sidewalkAround(scene, cx, cz, halfW, halfD) {
+  const t = 0.6;
+  const y = 0.12;
+  scene.add(box(halfW * 2 + t * 2, 0.24, t, mat.sidewalk, cx, y, cz - halfD - t / 2));
+  scene.add(box(halfW * 2 + t * 2, 0.24, t, mat.sidewalk, cx, y, cz + halfD + t / 2));
+  scene.add(box(t, 0.24, halfD * 2, mat.sidewalk, cx - halfW - t / 2, y, cz));
+  scene.add(box(t, 0.24, halfD * 2, mat.sidewalk, cx + halfW - t / 2 + t, y, cz));
+}
+
+// ---------------------------------------------------------------------------
+// Decorative / reusable props
+// ---------------------------------------------------------------------------
 
 function baobab(x, z, scale = 1) {
   const g = new THREE.Group();
@@ -143,30 +178,65 @@ function boat(x, z, hullMat, scale = 1) {
   return g;
 }
 
-/**
- * Builds a rectangular colonial administrative building with an arcade colonnade.
- */
+function beachUmbrella(x, z, colorMat) {
+  const g = new THREE.Group();
+  g.add(cylinder(0.06, 2.2, mat.wood, 0, 1.1, 0));
+  const canopy = new THREE.Mesh(geo.cone, colorMat);
+  canopy.scale.set(1.4, 0.8, 1.4);
+  canopy.position.set(0, 2.3, 0);
+  canopy.castShadow = true;
+  g.add(canopy);
+  g.position.set(x, 0, z);
+  return g;
+}
+
+// ---------------------------------------------------------------------------
+// Zone-specific buildings
+// ---------------------------------------------------------------------------
+
+/** Dense narrow multi-storey buildings typical of a port / old-town block. */
+function oldTownBlock(cx, cz, w, d, colliders) {
+  const g = new THREE.Group();
+  const cols = 3;
+  const bw = (w - (cols - 1) * 1.4) / cols;
+  const bd = d * 0.75;
+  for (let i = 0; i < cols; i++) {
+    const dx = -w / 2 + bw / 2 + i * (bw + 1.4);
+    const h = 3.2 + Math.random() * 2;
+    const wallMat = i % 2 === 0 ? mat.colonial : mat.laterite;
+    g.add(box(bw, h, bd, wallMat, dx, h / 2, 0));
+    g.add(box(bw + 0.3, 0.3, bd + 0.3, mat.laterite, dx, h + 0.15, 0));
+    g.add(box(bw * 0.55, 0.6, 0.06, mat.glass, dx, h * 0.62, bd / 2 + 0.03));
+    colliders.push({
+      minX: cx + dx - bw / 2,
+      maxX: cx + dx + bw / 2,
+      minZ: cz - bd / 2,
+      maxZ: cz + bd / 2,
+    });
+  }
+  g.position.set(cx, 0, cz);
+  return g;
+}
+
+/** Rectangular colonial administrative building with an arcade colonnade. */
 function adminBuilding(cx, cz, colliders) {
   const g = new THREE.Group();
   const w = 14,
     d = 10,
     h = 6;
   g.add(box(w, h, d, mat.colonial, 0, h / 2, 0));
-  // roof
   g.add(box(w + 1, 0.6, d + 1, mat.laterite, 0, h + 0.3, 0));
-  // arcade colonnade along front (facing -z, toward plaza)
   const archCount = 5;
   for (let k = 0; k < archCount; k++) {
     const cx2 = -w / 2 + (w / (archCount - 1)) * k;
     g.add(cylinder(0.35, 4.2, mat.colonial, cx2, 2.1, -d / 2 - 0.4));
   }
   g.add(box(w + 0.6, 0.4, 1.2, mat.colonial, 0, 4.4, -d / 2 - 0.4));
-  // pediment / clock tower accent
   g.add(box(2.4, 1.6, 2.4, mat.colonial, 0, h + 1.1, 2));
-  g.add(new THREE.Mesh(geo.cone, mat.laterite));
-  const roofCone = g.children[g.children.length - 1];
+  const roofCone = new THREE.Mesh(geo.cone, mat.laterite);
   roofCone.scale.set(1.9, 1.4, 1.9);
   roofCone.position.set(0, h + 2.6, 2);
+  g.add(roofCone);
 
   g.position.set(cx, 0, cz);
   colliders.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
@@ -250,26 +320,73 @@ function residentialBlock(cx, cz, colliders) {
   return g;
 }
 
-function harborShed(cx, cz, colliders) {
+function hotelBuilding(cx, cz, colliders) {
   const g = new THREE.Group();
-  const w = 8,
-    d = 6,
-    h = 3.4;
-  g.add(box(w, h, d, mat.laterite, 0, h / 2, 0));
-  const roof = box(w + 0.6, 0.3, d + 1, mat.tin, 0, h + 0.3, 0);
-  g.add(roof);
+  const w = 9,
+    d = 8,
+    h = 9;
+  g.add(box(w, h, d, mat.colonial, 0, h / 2, 0));
+  for (let level = 1; level <= 3; level++) {
+    g.add(box(w + 0.6, 0.22, d + 0.6, mat.laterite, 0, level * (h / 4), 0));
+  }
+  g.add(box(w + 0.8, 0.4, d + 0.8, mat.laterite, 0, h + 0.2, 0));
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(2.6, 20), mat.water);
+  pool.rotation.x = -Math.PI / 2;
+  pool.position.set(0, 0.03, d / 2 + 4.2);
+  g.add(pool);
   g.position.set(cx, 0, cz);
   colliders.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
+  return g;
+}
+
+function runway(cx, cz, length, width) {
+  const g = new THREE.Group();
+  g.add(box(width, 0.05, length, mat.tarmac, 0, 0.025, 0));
+  const dashCount = Math.max(6, Math.floor(length / 7));
+  for (let i = 0; i < dashCount; i++) {
+    const dz = -length / 2 + (length / dashCount) * (i + 0.5);
+    g.add(box(0.3, 0.06, (length / dashCount) * 0.5, mat.roadLine, 0, 0.05, dz));
+  }
+  g.position.set(cx, 0, cz);
+  return g;
+}
+
+function terminalBuilding(cx, cz, colliders) {
+  const g = new THREE.Group();
+  const w = 12,
+    d = 5,
+    h = 3.6;
+  g.add(box(w, h, d, mat.colonial, 0, h / 2, 0));
+  g.add(box(w + 0.5, 0.3, d + 0.5, mat.laterite, 0, h + 0.15, 0));
+  g.add(cylinder(1.1, 5.5, mat.colonial, w / 2 - 1.5, 2.75, 0));
+  g.add(box(1.6, 1.2, 1.6, mat.glass, w / 2 - 1.5, 5.6, 0));
+  g.position.set(cx, 0, cz);
+  colliders.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
+  return g;
+}
+
+function airplaneProp(x, z, rotY) {
+  const g = new THREE.Group();
+  const fuselage = cylinder(0.55, 6, mat.colonial, 0, 1.1, 0);
+  fuselage.rotation.x = Math.PI / 2;
+  g.add(fuselage);
+  const nose = new THREE.Mesh(geo.cone, mat.colonial);
+  nose.rotation.x = -Math.PI / 2;
+  nose.scale.set(0.55, 1.1, 0.55);
+  nose.position.set(0, 1.1, 3.1);
+  g.add(nose);
+  g.add(box(7, 0.15, 1.1, mat.laterite, 0, 1.1, 0.2));
+  g.add(box(0.15, 1.4, 1.1, mat.laterite, 0, 1.9, -2.9));
+  g.add(box(2.4, 0.12, 0.7, mat.laterite, 0, 1.5, -2.8));
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
   return g;
 }
 
 function plaza(cx, cz) {
   const g = new THREE.Group();
   const radius = 8;
-  const curb = new THREE.Mesh(
-    new THREE.RingGeometry(radius - 0.5, radius, 32),
-    mat.sidewalk
-  );
+  const curb = new THREE.Mesh(new THREE.RingGeometry(radius - 0.5, radius, 32), mat.sidewalk);
   curb.rotation.x = -Math.PI / 2;
   curb.position.y = 0.05;
   g.add(curb);
@@ -288,148 +405,171 @@ function plaza(cx, cz) {
   return g;
 }
 
-function roadNetwork(scene, extentHalf) {
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(extentHalf * 2.4, extentHalf * 2.4), mat.asphalt);
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  scene.add(ground);
+// ---------------------------------------------------------------------------
+// Roads
+// ---------------------------------------------------------------------------
 
-  // sidewalks around each block footprint + lane markings along grid lines
-  const offset = (GRID_N - 1) / 2;
-  for (let i = -1; i <= GRID_N; i++) {
-    const x = (i - offset) * CELL;
-    const line = box(0.25, 0.02, extentHalf * 2.2, mat.roadLine, x, 0.03, 0);
-    scene.add(line);
+function roadSegment(from, to, width = 9) {
+  const dx = to.x - from.x;
+  const dz = to.z - from.z;
+  const length = Math.hypot(dx, dz);
+  const angle = Math.atan2(dx, dz);
+  const g = new THREE.Group();
+  g.add(box(width, 0.05, length, mat.asphalt, 0, 0.025, 0));
+  const dashCount = Math.max(4, Math.floor(length / 6));
+  for (let i = 0; i < dashCount; i++) {
+    const dz2 = -length / 2 + (length / dashCount) * (i + 0.5);
+    g.add(box(0.25, 0.06, (length / dashCount) * 0.5, mat.roadLine, 0, 0.05, dz2));
   }
-  for (let j = -1; j <= GRID_N; j++) {
-    const z = (j - offset) * CELL;
-    const line = box(extentHalf * 2.2, 0.02, 0.25, mat.roadLine, 0, 0.03, z);
-    scene.add(line);
-  }
+  g.position.set((from.x + to.x) / 2, 0, (from.z + to.z) / 2);
+  g.rotation.y = angle;
+  return g;
 }
 
-function sidewalkAround(scene, cx, cz, halfW, halfD) {
-  const t = 0.6;
-  const y = 0.12;
-  scene.add(box(halfW * 2 + t * 2, 0.24, t, mat.sidewalk, cx, y, cz - halfD - t / 2));
-  scene.add(box(halfW * 2 + t * 2, 0.24, t, mat.sidewalk, cx, y, cz + halfD + t / 2));
-  scene.add(box(t, 0.24, halfD * 2, mat.sidewalk, cx - halfW - t / 2, y, cz));
-  scene.add(box(t, 0.24, halfD * 2, mat.sidewalk, cx + halfW - t / 2 + t, y, cz));
+// ---------------------------------------------------------------------------
+// Zone builders — each mutates `group`/`colliders` and returns pickup/dropoff
+// curb points plus the zone metadata used by the HUD/minimap.
+// ---------------------------------------------------------------------------
+
+function buildVilleBasse(zone, group, colliders) {
+  sidewalkAround(group, zone.center.x, zone.center.z, zone.halfW, zone.halfD);
+  for (const b of subBlocks(zone, 2, 1)) {
+    group.add(oldTownBlock(b.x, b.z, b.w, b.d, colliders));
+  }
+  // port flavor: boats moored along the bay-facing (east) edge
+  const edgeX = zone.center.x + zone.halfW + 3.5;
+  group.add(boat(edgeX, zone.center.z - 6, mat.hullBlue, 0.9));
+  group.add(boat(edgeX, zone.center.z + 6, mat.hullRed, 0.8));
+  return zoneCurbPoints(zone, ["n", "s", "w"]);
 }
+
+function buildPlateau(zone, group, colliders) {
+  sidewalkAround(group, zone.center.x, zone.center.z, zone.halfW, zone.halfD);
+  const [a, b] = subBlocks(zone, 2, 1);
+  group.add(plaza(a.x, a.z));
+  group.add(adminBuilding(b.x, b.z, colliders));
+  const plazaPoints = zoneCurbPoints({ center: { x: a.x, z: a.z }, halfW: 6.5, halfD: 6.5 });
+  return { points: zoneCurbPoints(zone), plazaCenter: { x: a.x, z: a.z }, extraPoints: plazaPoints };
+}
+
+function buildTanambao(zone, group, colliders) {
+  sidewalkAround(group, zone.center.x, zone.center.z, zone.halfW, zone.halfD);
+  for (const b of subBlocks(zone, 2, 1)) {
+    group.add(marketBlock(b.x, b.z, colliders));
+  }
+  return zoneCurbPoints(zone);
+}
+
+function buildBordDeMer(zone, group, colliders) {
+  sidewalkAround(group, zone.center.x, zone.center.z, zone.halfW, zone.halfD);
+  for (const b of subBlocks(zone, 2, 1)) {
+    group.add(hotelBuilding(b.x, b.z, colliders));
+  }
+  const edgeX = zone.center.x + zone.halfW + 2;
+  group.add(box(4, 0.05, zone.halfD * 1.8, mat.sand, edgeX, 0.025, zone.center.z));
+  group.add(beachUmbrella(edgeX, zone.center.z - 5, mat.umbrellaRed));
+  group.add(beachUmbrella(edgeX, zone.center.z + 2, mat.umbrellaBlue));
+  return zoneCurbPoints(zone, ["n", "s", "w"]);
+}
+
+function buildPeripherie(zone, group, colliders) {
+  sidewalkAround(group, zone.center.x, zone.center.z, zone.halfW, zone.halfD);
+  for (const b of subBlocks(zone, 2, 1)) {
+    group.add(residentialBlock(b.x, b.z, colliders));
+  }
+  return zoneCurbPoints(zone);
+}
+
+function buildAeroport(zone, group, colliders) {
+  const length = zone.halfW * 2 * 0.85;
+  group.add(runway(zone.center.x, zone.center.z, length, 7));
+  const terminalX = zone.center.x - zone.halfW + 6.5;
+  group.add(terminalBuilding(terminalX, zone.center.z + zone.halfD - 3, colliders));
+  group.add(airplaneProp(zone.center.x + 6, zone.center.z, Math.PI / 2));
+  group.add(lamppost(zone.center.x - zone.halfW - 1, zone.center.z - zone.halfD - 1));
+  return zoneCurbPoints(zone, ["n", "s", "w"]);
+}
+
+const ZONE_BUILDERS = {
+  ville_basse: buildVilleBasse,
+  plateau: buildPlateau,
+  tanambao: buildTanambao,
+  bord_de_mer: buildBordDeMer,
+  peripherie: buildPeripherie,
+  aeroport: buildAeroport,
+};
 
 /**
- * Builds the full city of Andalatra and returns useful references:
+ * Builds the full city of Andalatra from the Diego-Suarez-inspired layout
+ * (src/data/andalatraLayout.json) and returns useful references:
  * - group: THREE.Group containing all city meshes
- * - colliders: array of AABB rectangles for collision (buildings + water edge)
+ * - colliders: array of AABB rectangles for collision (buildings + terminal)
+ * - polygons: array of point lists the taxi may never enter (the bay)
  * - spawnZones: named areas used to place passenger/dropoff markers
  * - bounds: drivable area bounds
+ * - plazaCenter: taxi start position (Plateau roundabout)
  */
 export function buildCity(scene) {
+  const layout = getLayout();
   const group = new THREE.Group();
   const colliders = [];
   const spawnZones = [];
+  let plazaCenter = { x: 0, z: 0 };
 
-  const PLAZA = { i: 1, j: 1 };
-  const ADMIN = { i: 2, j: 1 };
-  const MARKET = [
-    { i: 1, j: 2 },
-    { i: 2, j: 2 },
-  ];
-  const WATERFRONT_ROW = 3;
+  const extent = layout.mapRadius + 20;
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(extent * 2, extent * 2), mat.asphalt);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  group.add(ground);
 
-  roadNetwork(scene, HALF_SPAN + CELL);
+  for (const road of layout.roads) {
+    group.add(roadSegment(road.from, road.to));
+  }
 
-  for (let i = 0; i < GRID_N; i++) {
-    for (let j = 0; j < GRID_N; j++) {
-      const { x, z } = blockCenter(i, j);
+  for (const zone of layout.zones) {
+    const builder = ZONE_BUILDERS[zone.id];
+    if (!builder) continue;
+    const result = builder(zone, group, colliders);
 
-      if (i === PLAZA.i && j === PLAZA.j) {
-        group.add(plaza(x, z));
-        const ring = 6.5;
-        const points = [0, 1, 2, 3].map((k) => {
-          const a = (k / 4) * Math.PI * 2;
-          return { x: x + Math.cos(a) * ring, z: z + Math.sin(a) * ring };
-        });
-        spawnZones.push({ name: "plaza", x, z, points });
-        continue;
-      }
-
-      if (i === ADMIN.i && j === ADMIN.j) {
-        group.add(adminBuilding(x, z, colliders));
-        sidewalkAround(group, x, z, BLOCK_SIZE / 2, BLOCK_SIZE / 2);
-        spawnZones.push({ name: "admin", x, z, points: curbPoints(x, z) });
-        continue;
-      }
-
-      if (MARKET.some((m) => m.i === i && m.j === j)) {
-        group.add(marketBlock(x, z, colliders));
-        sidewalkAround(group, x, z, BLOCK_SIZE / 2, BLOCK_SIZE / 2);
-        spawnZones.push({ name: "market", x, z, points: curbPoints(x, z) });
-        continue;
-      }
-
-      if (j === WATERFRONT_ROW) {
-        group.add(harborShed(x, z - 4, colliders));
-        group.add(baobab(x - 7, z + 6, 0.9));
-        sidewalkAround(group, x, z, BLOCK_SIZE / 2, BLOCK_SIZE / 2);
-        spawnZones.push({ name: "waterfront", x, z, points: curbPoints(x, z, ["s", "e", "w"]) });
-        continue;
-      }
-
-      group.add(residentialBlock(x, z, colliders));
-      sidewalkAround(group, x, z, BLOCK_SIZE / 2, BLOCK_SIZE / 2);
-      spawnZones.push({ name: "residential", x, z, points: curbPoints(x, z) });
-
-      // decorative lamppost / occasional parked car
-      if ((i + j) % 2 === 0) {
-        group.add(lamppost(x - BLOCK_SIZE / 2 - 2, z));
-      }
-      if ((i + j) % 3 === 0) {
-        group.add(parkedCar(x + BLOCK_SIZE / 2 - 3, z + BLOCK_SIZE / 2 - 3, Math.PI / 2, i + j));
-      }
+    if (zone.id === "plateau") {
+      plazaCenter = result.plazaCenter;
+      spawnZones.push({ name: zone.id, x: zone.center.x, z: zone.center.z, points: [...result.points, ...result.extraPoints] });
+    } else {
+      spawnZones.push({ name: zone.id, x: zone.center.x, z: zone.center.z, points: result });
     }
   }
 
-  // lampposts along plaza-adjacent streets
-  for (let i = 0; i < GRID_N; i++) {
-    const { x } = blockCenter(i, 0);
-    group.add(lamppost(x, -HALF_SPAN - 3));
-  }
-
-  // ---- Waterfront: bay beyond the northern edge ----
-  const waterZ0 = blockCenter(0, WATERFRONT_ROW).z + BLOCK_SIZE / 2 + ROAD_WIDTH / 2;
-  const waterMesh = new THREE.Mesh(new THREE.PlaneGeometry(HALF_SPAN * 4, HALF_SPAN * 3), mat.water);
-  waterMesh.rotation.x = -Math.PI / 2;
-  waterMesh.position.set(0, -0.15, waterZ0 + HALF_SPAN * 1.5);
-  waterMesh.receiveShadow = true;
-  group.add(waterMesh);
-
-  // quay curb along the waterfront
-  group.add(box(HALF_SPAN * 2.6, 0.4, 1, mat.sidewalk, 0, 0.2, waterZ0));
-
-  // boats
-  const boatSpots = [-30, -10, 12, 34];
-  boatSpots.forEach((bx, idx) => {
-    group.add(boat(bx, waterZ0 + 10 + (idx % 2) * 6, idx % 2 === 0 ? mat.hullBlue : mat.hullRed, 1 + (idx % 2) * 0.3));
+  // ---- Bay ----
+  const bayShape = new THREE.Shape();
+  layout.bay.forEach((p, i) => {
+    if (i === 0) bayShape.moveTo(p.x, p.z);
+    else bayShape.lineTo(p.x, p.z);
   });
-
-  // Water collider: block driving past the quay curb into the bay
-  colliders.push({
-    minX: -HALF_SPAN * 2,
-    maxX: HALF_SPAN * 2,
-    minZ: waterZ0 - 0.5,
-    maxZ: waterZ0 + HALF_SPAN * 3,
-    isEdge: true,
-  });
+  bayShape.closePath();
+  const bayMesh = new THREE.Mesh(new THREE.ShapeGeometry(bayShape), mat.bay);
+  // ShapeGeometry lies in local XY; rotating +90° about X maps local (x,y) -> world (x,0,y),
+  // matching the {x,z} polygon coordinates used for collision below exactly.
+  bayMesh.rotation.x = Math.PI / 2;
+  bayMesh.position.y = 0.02;
+  bayMesh.receiveShadow = true;
+  group.add(bayMesh);
 
   scene.add(group);
 
   const drivableBounds = {
-    minX: -HALF_SPAN - CELL * 0.9,
-    maxX: HALF_SPAN + CELL * 0.9,
-    minZ: -HALF_SPAN - CELL * 0.9,
-    maxZ: waterZ0 - 1,
+    minX: -extent + 4,
+    maxX: extent - 4,
+    minZ: -extent + 4,
+    maxZ: extent - 4,
   };
 
-  return { group, colliders, spawnZones, bounds: drivableBounds, plazaCenter: blockCenter(PLAZA.i, PLAZA.j) };
+  return {
+    group,
+    colliders,
+    polygons: [layout.bay],
+    spawnZones,
+    bounds: drivableBounds,
+    plazaCenter,
+    mapRadius: layout.mapRadius,
+  };
 }
