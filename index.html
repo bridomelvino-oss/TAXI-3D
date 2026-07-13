@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Andalatra Taxi</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23F4C430'/%3E%3Crect y='13' width='32' height='6' fill='%231c1c1c'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+
+      <div id="hud">
+        <div id="money-counter">
+          <span class="label">Taximètre</span>
+          <span id="money-value">0 Ar</span>
+        </div>
+
+        <div id="fare-banner" class="hidden">
+          <span id="fare-text"></span>
+        </div>
+
+        <div id="timer-wrap" class="hidden">
+          <div id="timer-bar"><div id="timer-bar-fill"></div></div>
+        </div>
+
+        <div id="objective-hint" class="hidden">
+          <div id="direction-arrow"></div>
+          <span id="objective-text">Direction : passager</span>
+        </div>
+
+        <canvas id="minimap" width="180" height="180"></canvas>
+      </div>
+
+      <div id="start-screen">
+        <div class="start-panel">
+          <h1>Andalatra <span>Taxi</span></h1>
+          <p class="subtitle">Bienvenue à Andalatra — prenez le volant de votre taxi et enchaînez les courses !</p>
+          <button id="play-button">Jouer</button>
+          <p class="controls-hint">
+            Contrôles : <strong>Z/↑</strong> avancer · <strong>S/↓</strong> freiner/reculer ·
+            <strong>Q/←</strong> gauche · <strong>D/→</strong> droite · <strong>Espace</strong> frein à main
+          </p>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

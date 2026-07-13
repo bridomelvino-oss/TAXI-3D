@@ -1,0 +1,81 @@
+{
+  "map": "Andalatra",
+  "version": 1,
+  "viewBox": { "width": 680, "height": 650 },
+  "bay": {
+    "label": "Baie",
+    "polygon": [
+      [560, 60],
+      [660, 90],
+      [680, 300],
+      [650, 560],
+      [580, 620],
+      [550, 400],
+      [570, 200]
+    ]
+  },
+  "zones": [
+    {
+      "id": "ville_basse",
+      "name": "Ville basse",
+      "subtitle": "Port, vieille ville",
+      "type": "dense",
+      "course_density": "high",
+      "rect": { "x": 380, "y": 320, "width": 170, "height": 90 }
+    },
+    {
+      "id": "plateau",
+      "name": "Plateau",
+      "subtitle": "Centre-ville",
+      "type": "dense",
+      "course_density": "high",
+      "rect": { "x": 380, "y": 200, "width": 170, "height": 90 }
+    },
+    {
+      "id": "tanambao",
+      "name": "Tanambao",
+      "subtitle": "Marché populaire",
+      "type": "dense",
+      "course_density": "high",
+      "rect": { "x": 160, "y": 260, "width": 170, "height": 100 }
+    },
+    {
+      "id": "bord_de_mer",
+      "name": "Bord de mer",
+      "subtitle": "Hôtels, plages",
+      "type": "premium",
+      "course_density": "low",
+      "rect": { "x": 380, "y": 80, "width": 170, "height": 90 }
+    },
+    {
+      "id": "peripherie",
+      "name": "Périphérie",
+      "subtitle": "Résidentiel calme",
+      "type": "buffer",
+      "course_density": "medium",
+      "rect": { "x": 160, "y": 400, "width": 170, "height": 90 }
+    },
+    {
+      "id": "aeroport",
+      "name": "Aéroport",
+      "subtitle": "Longues courses",
+      "type": "premium",
+      "course_density": "low",
+      "rect": { "x": 160, "y": 520, "width": 170, "height": 80 }
+    }
+  ],
+  "main_roads": [
+    { "from": "bord_de_mer", "to": "plateau" },
+    { "from": "plateau", "to": "ville_basse" },
+    { "from": "tanambao", "to": "peripherie" },
+    { "from": "peripherie", "to": "aeroport" },
+    { "from": "plateau", "to": "tanambao" },
+    { "from": "ville_basse", "to": "peripherie" }
+  ],
+  "design_notes": {
+    "core_triangle": ["ville_basse", "plateau", "tanambao"],
+    "outer_zones": ["bord_de_mer", "aeroport"],
+    "buffer_zone": "peripherie",
+    "inspiration": "Diego-Suarez (Antsiranana): baie en trefle, ville basse/plateau, quartiers Tanambao, aeroport Arrachart excentre"
+  }
+}
