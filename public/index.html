@@ -15,15 +15,22 @@
       }
     }
   </script>
+  <!-- Client Socket.io : servi automatiquement par le serveur (pas de CDN, pas de build) -->
+  <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
   <canvas id="game-canvas"></canvas>
 
-  <div id="hud">
+  <div id="hud" class="hidden">
     <div id="fps-counter">-- FPS</div>
+    <div id="scoreboard">
+      <span class="score score--blue"><span id="score-blue">0</span></span>
+      <span class="score-round">Manche <span id="round-number">1</span></span>
+      <span class="score score--red"><span id="score-red">0</span></span>
+    </div>
   </div>
 
-  <div id="crosshair">
+  <div id="crosshair" class="hidden">
     <div class="crosshair-dot"></div>
     <div class="crosshair-line crosshair-line--top"></div>
     <div class="crosshair-line crosshair-line--bottom"></div>
@@ -32,10 +39,52 @@
   </div>
   <div id="hitmarker"></div>
 
-  <div id="overlay">
-    <div id="overlay-box">
+  <div id="round-banner" class="hidden"></div>
+
+  <!-- Ecran de menu : creer ou rejoindre un salon -->
+  <div id="screen-menu" class="screen">
+    <div class="screen-box">
       <h1>Paintball 3D</h1>
-      <p>Phase 2 : tir + impacts (solo)</p>
+      <p class="subtitle">Jeu de paintball 3D multijoueur en salon prive</p>
+
+      <label class="field-label" for="player-name">Ton pseudo</label>
+      <input id="player-name" class="text-input" type="text" maxlength="16" placeholder="Pseudo" />
+
+      <div class="menu-actions">
+        <button id="create-room-button" class="primary-button">Creer un salon</button>
+
+        <div class="join-row">
+          <input id="join-code-input" class="text-input code-input" type="text" maxlength="4" placeholder="CODE" />
+          <button id="join-room-button" class="secondary-button">Rejoindre</button>
+        </div>
+      </div>
+
+      <p id="menu-error" class="error-text hidden"></p>
+    </div>
+  </div>
+
+  <!-- Ecran de salon : code, joueurs, pret, lancement (hote) -->
+  <div id="screen-lobby" class="screen hidden">
+    <div class="screen-box">
+      <h1>Salon</h1>
+      <p class="subtitle">Code a partager : <span id="lobby-code" class="room-code"></span></p>
+
+      <ul id="lobby-players" class="player-list"></ul>
+
+      <div class="menu-actions">
+        <button id="ready-button" class="secondary-button">Pret</button>
+        <button id="start-button" class="primary-button hidden">Lancer la partie</button>
+        <button id="leave-button" class="text-button">Quitter le salon</button>
+      </div>
+
+      <p id="lobby-error" class="error-text hidden"></p>
+    </div>
+  </div>
+
+  <div id="overlay" class="hidden">
+    <div id="overlay-box">
+      <h1>C'est parti</h1>
+      <p id="overlay-subtitle">Manche 1</p>
       <ul>
         <li><strong>Z Q S D</strong> : se deplacer</li>
         <li><strong>Espace</strong> : sauter</li>
@@ -46,6 +95,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>

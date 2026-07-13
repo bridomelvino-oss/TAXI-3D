@@ -5,7 +5,7 @@ import { resolveHorizontalCollisions, raycastGround } from '../utils/Collision.j
 // Constantes de mouvement, pensees pour un ressenti nerveux et agile (arcade,
 // pas simulation realiste) : montee en vitesse rapide, freinage franc, un
 // peu de derapage dans les demi-tours brusques.
-const MAX_SPEED = 7.2; // m/s
+export const MAX_SPEED = 7.2; // m/s (exporte : reutilise pour normaliser l'etat envoye au reseau)
 const ACCELERATION = 52; // m/s^2 - montee en vitesse
 const FRICTION = 18; // m/s^2 - freinage quand on relache les touches
 const TURN_BRAKE_BOOST = 2.4; // multiplicateur de freinage lors d'un demi-tour brusque (derapage)

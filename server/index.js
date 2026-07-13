@@ -1,8 +1,11 @@
-// Serveur de developpement : sert simplement les fichiers statiques du client.
-// La logique reseau (Socket.io, salons, autorite serveur) sera ajoutee en Phase 3.
+// Serveur : sert les fichiers statiques du client et heberge Socket.io pour
+// la synchro temps reel (salons, mouvement, autorite serveur sur les impacts).
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createServer } from 'node:http';
+import { Server } from 'socket.io';
+import { setupSocket } from './socket.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -13,6 +16,10 @@ const app = express();
 // sur un hebergement statique (GitHub Pages, etc.).
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-app.listen(PORT, () => {
-  console.log(`Client servi sur http://localhost:${PORT}`);
+const httpServer = createServer(app);
+const io = new Server(httpServer);
+setupSocket(io);
+
+httpServer.listen(PORT, () => {
+  console.log(`Serveur (client + Socket.io) sur http://localhost:${PORT}`);
 });
