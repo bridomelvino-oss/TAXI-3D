@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paintball 3D - Phase 1 : Mouvement & Camera</title>
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Import map : Three.js est servi localement par le serveur (dependance npm),
+       pas de CDN externe. Pas de bundler pour l'instant, simple a iterer en solo. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/vendor/three/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+
+  <div id="hud">
+    <div id="fps-counter">-- FPS</div>
+  </div>
+
+  <div id="overlay">
+    <div id="overlay-box">
+      <h1>Paintball 3D</h1>
+      <p>Phase 1 : mouvement + camera (solo)</p>
+      <ul>
+        <li><strong>Z Q S D</strong> : se deplacer</li>
+        <li><strong>Espace</strong> : sauter</li>
+        <li><strong>Souris</strong> : regarder / orienter la camera</li>
+      </ul>
+      <button id="play-button">Cliquer pour jouer</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

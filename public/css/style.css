@@ -1,0 +1,99 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0a0a0f;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+#hud {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  color: #e8e8e8;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  z-index: 5;
+}
+
+#fps-counter {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 5, 10, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+#overlay.hidden {
+  display: none;
+}
+
+#overlay-box {
+  text-align: center;
+  color: #f0f0f0;
+  padding: 32px 40px;
+  background: rgba(20, 20, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+#overlay-box h1 {
+  font-size: 28px;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+}
+
+#overlay-box p {
+  opacity: 0.7;
+  margin-bottom: 18px;
+}
+
+#overlay-box ul {
+  list-style: none;
+  margin-bottom: 24px;
+  text-align: left;
+  display: inline-block;
+}
+
+#overlay-box li {
+  margin: 4px 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+#play-button {
+  background: #ff5533;
+  color: white;
+  border: none;
+  padding: 12px 28px;
+  font-size: 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+#play-button:hover {
+  background: #ff6b4a;
+}
