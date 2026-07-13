@@ -57,7 +57,7 @@ function animate() {
 
   if (input.isPointerLocked) {
     // Camera : reactive, appliquee immediatement (pas d'attente reseau/logique)
-    thirdPersonCamera.applyMouseDelta(input.mouseDeltaX, input.mouseDeltaY);
+    thirdPersonCamera.applyMouseDelta(input.mouseDeltaX, input.mouseDeltaY, dt);
 
     // Joueur : prediction locale instantanee, base sur l'orientation camera
     player.update(dt, input.actions, thirdPersonCamera.yaw);

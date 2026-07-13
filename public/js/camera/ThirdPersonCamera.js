@@ -1,13 +1,20 @@
 import * as THREE from 'three';
 
-const MOUSE_SENSITIVITY = 0.0022;
-const MIN_PITCH = -Math.PI / 2 + 0.2; // regarder vers le haut
-const MAX_PITCH = Math.PI / 2 - 0.35; // regarder vers le bas
+const MOUSE_SENSITIVITY = 0.0020;
+const MIN_PITCH = -Math.PI / 2 + 0.2; // limite basse (regarder vers le haut)
+const MAX_PITCH = Math.PI / 2 - 0.35; // limite haute (regarder vers le bas)
 const DISTANCE = 5.2; // distance ideale derriere le personnage
 const PIVOT_HEIGHT = 1.5; // hauteur visee (approx. epaules/tete)
 const COLLISION_MARGIN = 0.3; // recul apres impact, pour ne pas coller a la surface
 const MIN_DISTANCE = 0.6; // distance mini si la camera est tres proche d'un mur
-const POSITION_SMOOTH_TIME = 0.06; // secondes, lissage tres court (anti-jitter, pas de lag percu)
+const POSITION_SMOOTH_TIME = 0.07; // secondes, lissage court (anti-jitter, pas de lag percu)
+
+// Lissage tres leger du delta souris brut : les evenements mousemove arrivent
+// par paquets irreguliers (polling rate variable, trackpad, etc.), ce qui donne
+// une sensation saccadee ("lutter contre la camera") si on les applique bruts.
+// Un lissage court (quelques millisecondes) absorbe ce bruit sans ajouter de
+// latence perceptible a la visee.
+const MOUSE_SMOOTH_TIME = 0.035;
 
 const _pivot = new THREE.Vector3();
 const _desiredOffset = new THREE.Vector3();
@@ -16,9 +23,10 @@ const _rayDir = new THREE.Vector3();
 const _lookTarget = new THREE.Vector3();
 
 /**
- * Camera 3e personne orbitale : la souris pilote le regard (reactif, sans
- * lissage), tandis que la position de la camera est lissee et corrigee par
- * un raycast pour eviter de traverser le decor (technique du "spring arm").
+ * Camera 3e personne orbitale : la souris pilote le regard (tres reactif,
+ * juste assez lisse pour ne pas etre saccade), tandis que la position de la
+ * camera est lissee et corrigee par un raycast pour eviter de traverser le
+ * decor (technique du "spring arm").
  */
 export class ThirdPersonCamera {
   constructor(camera) {
@@ -27,14 +35,25 @@ export class ThirdPersonCamera {
     this.pitch = -0.15;
     this.raycaster = new THREE.Raycaster();
 
+    // Delta souris lisse, accumule frame par frame avant d'etre applique
+    this._smoothDeltaX = 0;
+    this._smoothDeltaY = 0;
+
     // Position actuelle lissee de la camera (init au premier update)
     this._currentPos = null;
   }
 
-  /** Applique le mouvement souris a l'orientation (immediat, pas de lissage). */
-  applyMouseDelta(deltaX, deltaY) {
-    this.yaw -= deltaX * MOUSE_SENSITIVITY;
-    this.pitch -= deltaY * MOUSE_SENSITIVITY;
+  /**
+   * Enregistre le mouvement souris brut de la frame (avant lissage).
+   * A appeler une fois par frame, meme si le delta est nul.
+   */
+  applyMouseDelta(deltaX, deltaY, dt) {
+    const alpha = 1 - Math.exp(-dt / MOUSE_SMOOTH_TIME);
+    this._smoothDeltaX += (deltaX - this._smoothDeltaX) * alpha;
+    this._smoothDeltaY += (deltaY - this._smoothDeltaY) * alpha;
+
+    this.yaw -= this._smoothDeltaX * MOUSE_SENSITIVITY;
+    this.pitch -= this._smoothDeltaY * MOUSE_SENSITIVITY;
     this.pitch = THREE.MathUtils.clamp(this.pitch, MIN_PITCH, MAX_PITCH);
   }
 
